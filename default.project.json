@@ -1,0 +1,22 @@
+{
+  "name": "EscapeFromBikiniBottom",
+  "tree": {
+    "$className": "DataModel",
+    "Workspace": {
+      "$className": "Workspace",
+      "$path": "src/Workspace"
+    },
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "$path": "src/ServerScriptService"
+    },
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "$path": "src/ReplicatedStorage"
+    },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "$path": "src/StarterPlayer"
+    }
+  }
+}
