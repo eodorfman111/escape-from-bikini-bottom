@@ -55,7 +55,7 @@ const arrangements: Record<MusicMood, Arrangement> = {
   },
   won: {
     bpm: 116,
-    progression: [[62, 66, 69, 74], [55, 59, 62, 67], [57, 61, 64, 69]],
+    progression: [[62, 66, 69, 74], [55, 59, 62, 67], [62, 66, 69, 74]],
     bars: 3,
     oneShot: true,
   },
@@ -101,6 +101,7 @@ export class Soundtrack {
 
   async start(): Promise<void> {
     if (this.disposed || this.unavailable) return
+    this.paused = false
 
     try {
       if (!this.context) this.createAudioGraph()
@@ -110,7 +111,10 @@ export class Soundtrack {
       if (this.disposed || context.state === 'closed') return
       if (context.state !== 'running') await context.resume()
       if (this.disposed) return
-      this.paused = false
+      if (this.paused) {
+        await context.suspend()
+        return
+      }
       if (!this.activeLayer) this.changeArrangement(this.mood)
       this.startScheduler()
     } catch (error) {
@@ -158,6 +162,7 @@ export class Soundtrack {
 
   async resume(): Promise<void> {
     if (this.disposed || this.unavailable) return
+    this.paused = false
     if (!this.context) {
       await this.start()
       return
@@ -169,7 +174,10 @@ export class Soundtrack {
       if (this.disposed || !context || context.state === 'closed') return
       if (context.state !== 'running') await context.resume()
       if (this.disposed) return
-      this.paused = false
+      if (this.paused) {
+        await context.suspend()
+        return
+      }
       if (!this.activeLayer) this.changeArrangement(this.mood)
       if (this.activeLayer) {
         this.activeLayer.nextTime = Math.max(this.activeLayer.nextTime, context.currentTime + 0.04)
@@ -256,8 +264,8 @@ export class Soundtrack {
     reverb.buffer = this.createImpulse()
     reverbTone.type = 'lowpass'
     reverbTone.frequency.value = mood === 'danger' ? 3200 : 4100
-    output.gain.setValueAtTime(0.0001, startTime)
-    output.gain.exponentialRampToValueAtTime(1, startTime + CROSSFADE_SECONDS)
+    output.gain.setValueAtTime(0, startTime)
+    output.gain.linearRampToValueAtTime(1, startTime + CROSSFADE_SECONDS)
 
     input.connect(dry)
     dry.connect(output)
@@ -305,7 +313,7 @@ export class Soundtrack {
       const oldLayer = this.activeLayer
       const gain = oldLayer.output.gain
       gain.cancelAndHoldAtTime(now)
-      gain.exponentialRampToValueAtTime(0.0001, now + CROSSFADE_SECONDS)
+      gain.linearRampToValueAtTime(0, now + CROSSFADE_SECONDS)
       oldLayer.retiringAt = now + CROSSFADE_SECONDS + 1.3
     }
 
@@ -318,7 +326,7 @@ export class Soundtrack {
   private startScheduler(): void {
     if (this.timer || this.paused || this.disposed || !this.context) return
     this.schedulerTick()
-    if (this.activeThemeComplete()) return
+    if (this.unavailable || !this.context || this.activeThemeComplete()) return
     this.timer = setInterval(() => this.schedulerTick(), TICK_MILLISECONDS)
   }
 
@@ -343,6 +351,11 @@ export class Soundtrack {
         const arrangement = arrangements[layer.mood]
         const stepDuration = 60 / arrangement.bpm / 4
         const lastStep = arrangement.bars * 16
+        if (layer.nextTime < now - stepDuration) {
+          const skippedSteps = Math.ceil((now - layer.nextTime) / stepDuration)
+          layer.step += skippedSteps
+          layer.nextTime += skippedSteps * stepDuration
+        }
         while (layer.nextTime < now + LOOKAHEAD_SECONDS) {
           if (!arrangement.oneShot || layer.step < lastStep) {
             this.scheduleStep(layer, arrangement, layer.step, layer.nextTime, stepDuration)
