@@ -67,8 +67,10 @@ class FakeStereoPannerNode extends FakeAudioNode {
 class FakeSourceNode extends FakeAudioNode {
   starts = 0
   stops = 0
-  start() {
+  startTime = 0
+  start(time: number) {
     this.starts++
+    this.startTime = time
   }
   stop() {
     this.stops++
@@ -100,6 +102,7 @@ class FakeAudioBuffer {
 class FakeAudioContext {
   static instances: FakeAudioContext[] = []
   static failConstruction = false
+  static resumeGate: Promise<void> | null = null
   readonly sampleRate = 48000
   readonly destination = new FakeAudioNode()
   readonly gains: FakeGainNode[] = []
@@ -150,6 +153,7 @@ class FakeAudioContext {
   }
   async resume() {
     this.resumeCalls++
+    if (FakeAudioContext.resumeGate) await FakeAudioContext.resumeGate
     this.state = 'running'
   }
   async suspend() {
@@ -167,6 +171,7 @@ describe('Soundtrack', () => {
     vi.useFakeTimers()
     FakeAudioContext.instances = []
     FakeAudioContext.failConstruction = false
+    FakeAudioContext.resumeGate = null
     vi.stubGlobal('AudioContext', FakeAudioContext)
   })
 
@@ -196,13 +201,14 @@ describe('Soundtrack', () => {
     await soundtrack.start()
     const context = FakeAudioContext.instances[0]
     const gainCount = context.gains.length
+    const initialOutput = context.gains.find(gain => gain.gain.ramps.includes(1))
 
     soundtrack.setMood('menu')
     expect(context.gains).toHaveLength(gainCount)
 
     soundtrack.setMood('combat')
     expect(context.gains.length).toBeGreaterThan(gainCount)
-    expect(context.gains.some(gain => gain.gain.ramps.includes(0.0001))).toBe(true)
+    expect(initialOutput?.gain.ramps).toEqual([1, 0])
     expect(context.sources.length).toBeGreaterThan(6)
     soundtrack.dispose()
   })
@@ -252,6 +258,39 @@ describe('Soundtrack', () => {
     context.currentTime = 20
     vi.advanceTimersByTime(31)
 
+    expect(vi.getTimerCount()).toBe(0)
+    soundtrack.dispose()
+  })
+
+  it('skips missed beats after a timer stall instead of playing a burst of old notes', async () => {
+    const soundtrack = new Soundtrack()
+    soundtrack.setMood('combat')
+    await soundtrack.start()
+    const context = FakeAudioContext.instances[0]
+    const previousSources = context.sources.length
+
+    context.currentTime = 30
+    vi.advanceTimersByTime(31)
+
+    const newSources = context.sources.slice(previousSources)
+    expect(newSources.length).toBeGreaterThan(0)
+    expect(newSources.length).toBeLessThan(20)
+    expect(newSources.every(source => source.startTime >= 30)).toBe(true)
+    soundtrack.dispose()
+  })
+
+  it('honors a pause requested while the user-gesture resume is still pending', async () => {
+    let releaseResume: () => void = () => undefined
+    FakeAudioContext.resumeGate = new Promise<void>(resolve => { releaseResume = resolve })
+    const soundtrack = new Soundtrack()
+    const starting = soundtrack.start()
+
+    soundtrack.pause()
+    releaseResume()
+    await starting
+
+    const context = FakeAudioContext.instances[0]
+    expect(context.state).toBe('suspended')
     expect(vi.getTimerCount()).toBe(0)
     soundtrack.dispose()
   })
