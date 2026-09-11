@@ -3,6 +3,9 @@ import { Game } from './game'
 import type { GameView } from './game'
 import type { Mode } from './rules'
 import { researchMarkup } from './research'
+import { avatars } from './characters'
+import type { Avatar } from './characters'
+import { AvatarPicker } from './avatar-picker'
 
 const icons: Record<string, string> = {
   flower: '<path d="M12 8C3-4-3 10 7 12c-13 5 1 15 4 4 5 13 15 0 5-4 13-4 0-15-4-4Z"/><circle cx="12" cy="12" r="2"/>',
@@ -37,7 +40,7 @@ app.innerHTML = `
         <button id="start-survival" class="primary-button"><span>Let’s do this</span>${icon('arrow')}</button>
         <button id="start-explore" class="explore-button">${icon('compass')} Just explore</button>
       </div>
-      <div class="game-meta"><span>FIRST-PERSON SURVIVAL</span><i></i><span>5 WAVES. 3 HOMES. YOUR NEIGHBORHOOD.</span></div>
+      <div class="game-meta"><span>FIRST-PERSON SURVIVAL</span><i></i><span>BROWSER + STANDALONE DESKTOP EDITION</span></div>
     </main>
     <aside class="postcard"><span class="postcard-line"></span><span>WELCOME TO<br><b>Conch Street</b><small>BIKINI BOTTOM · EST. 1999</small></span></aside>
     <footer class="landing-footer"><span>YOU DON’T HAVE TO FACE THE TIDE ALONE.</span><label class="crew-switch"><span class="crew-faces"><i class="sponge-face"></i><i class="patrick-face"></i></span><span>Bring SpongeBob & Patrick</span><input id="crew" type="checkbox" checked /><span class="switch-track"></span></label><button class="guide-button footer-link">Built from the show. See our notes ↗</button></footer>
@@ -58,7 +61,7 @@ app.innerHTML = `
       <div class="control-hints"><span><kbd>W A S D</kbd> Move</span><span><kbd>SHIFT</kbd> Sprint</span><span><kbd>R</kbd> Reload</span><span><kbd>E</kbd> Interact</span><span><kbd>B</kbd> Barricade</span></div>
       <div class="ammo-block"><span id="weapon-name">REEF PISTOL</span><strong><b id="ammo-number">12</b><i>/ <span id="reserve-number">84</span></i></strong><small id="reload-state">SEMI-AUTO · CLICK TO FIRE</small></div>
     </div>
-    <div class="mini-map"><canvas id="map" width="180" height="180" aria-label="Map of nearby walls, friends and fish"></canvas><span>CONCH NAVIGATION <b>●</b></span></div>
+    <div class="mini-map"><canvas id="map" width="180" height="180" aria-label="Map of nearby walls, friends and fish"></canvas><span>CONCH NAVIGATION <b>●</b></span><small id="secret-status">0 / 9 SECRETS</small></div>
     <div id="touch-controls"><div id="joystick" aria-label="Movement joystick"><i></i></div><div class="touch-actions"><button id="touch-interact" aria-label="Interact">E</button><button id="touch-reload" aria-label="Reload">R</button><button id="touch-barricade" aria-label="Barricade">B</button><button id="touch-fire" aria-label="Fire pistol">${icon('target')}</button></div><span class="touch-look-hint">DRAG THE VIEW TO LOOK</span></div>
     <div class="damage-vignette"></div>
   </div>
@@ -67,12 +70,19 @@ app.innerHTML = `
     <p>The neighborhood can wait. Your game is paused.</p>
     <button id="resume" class="primary-button">Back to it ${icon('arrow')}</button>
     <div class="settings-row"><label for="sensitivity">Look sensitivity</label><input id="sensitivity" type="range" min="0.3" max="2" step="0.1" value="1" /></div>
-    <div class="pause-controls"><span><kbd>WASD</kbd> Move · <kbd>SHIFT</kbd> Sprint</span><span><kbd>MOUSE</kbd> Look · <kbd>CLICK</kbd> Fire</span><span><kbd>E</kbd> Doors, stairs & supplies</span><span><kbd>R</kbd> Reload · <kbd>B</kbd> Rebuild front door</span><span><kbd>ESC / P</kbd> Pause · Drag to look if capture is unavailable</span></div>
+    <div class="settings-row"><label for="music-volume">Music volume</label><input id="music-volume" type="range" min="0" max="1" step="0.05" value="0.65" /></div>
+    <div class="pause-controls"><span><kbd>WASD</kbd> Move · <kbd>SHIFT</kbd> Sprint</span><span><kbd>MOUSE</kbd> Look · <kbd>CLICK</kbd> Fire</span><span>Walk through open doors and stairs automatically</span><span><kbd>E</kbd> Supplies & secrets · <kbd>R</kbd> Reload · <kbd>B</kbd> Rebuild</span><span><kbd>ESC / P</kbd> Pause · Drag to look if capture is unavailable</span></div>
     <p class="tip">Closed doors buy time. Supply crates refill every 30 seconds. Upstairs won’t keep the fish out forever.</p>
     <div class="dialog-secondary"><button id="restart">Start over</button><button id="menu">Main menu</button></div>
   </dialog>
   <dialog id="guide-dialog" class="guide-dialog"><button id="close-guide" class="icon-button" aria-label="Close field guide">${icon('close')}</button>${researchMarkup()}</dialog>
   <dialog id="end-dialog" class="small-dialog"><span id="end-eyebrow" class="eyebrow"></span><h2 id="end-title"></h2><p id="end-description"></p><div id="end-stats"></div><button id="play-again" class="primary-button">One more tide ${icon('arrow')}</button><button id="end-menu" class="text-button">Back to the neighborhood</button></dialog>
+  <section id="character-select" hidden aria-label="Character selection">
+    <div class="picker-panel">
+      <div class="picker-copy"><button id="close-picker" class="text-button">← Back</button><span id="picker-mode" class="eyebrow">SURVIVAL MODE</span><h2>Choose your<br><em>survivor.</em></h2><p>Your character changes the hands you see in first person. Everyone gets the same reef pistol and survival stats.</p><div id="avatar-cards" class="avatar-cards">${avatars.map((avatar, index) => `<button class="avatar-card${index === 0 ? ' selected' : ''}" data-avatar="${avatar.id}" style="--avatar:${avatar.color}"><i></i><span><b>${avatar.name}</b><small>${avatar.description}</small></span>${icon('check')}</button>`).join('')}</div><button id="confirm-character" class="primary-button" disabled><span>Preparing the neighborhood…</span>${icon('arrow')}</button><small id="prepare-status">Building detailed interiors · 0 / 7</small></div>
+      <div class="avatar-stage"><canvas id="avatar-preview" aria-label="Rotating preview of selected character"></canvas><span>FIRST-PERSON CHARACTER</span></div>
+    </div>
+  </section>
   <div id="error" hidden role="alert"><h2>We couldn’t reach Bikini Bottom.</h2><p>This game needs WebGL. Try enabling hardware acceleration or using a recent browser.</p><button onclick="location.reload()">Try again</button></div>
 `
 
@@ -82,7 +92,10 @@ const hud = element('hud')
 const pauseDialog = element<HTMLDialogElement>('pause-dialog')
 const guideDialog = element<HTMLDialogElement>('guide-dialog')
 const endDialog = element<HTMLDialogElement>('end-dialog')
+const characterSelect = element('character-select')
 let mode: Mode = 'survival'
+let selectedAvatar: Avatar = 'explorer'
+let pendingMode: Mode = 'survival'
 let game: Game
 let toastTimeout: ReturnType<typeof setTimeout>
 let hitTimeout: ReturnType<typeof setTimeout>
@@ -162,6 +175,7 @@ function update(view: GameView) {
   element('weapon-name').textContent = state.mode === 'explore' ? 'EXPLORER MODE' : 'REEF PISTOL'
   element('reload-state').textContent = state.mode === 'explore' ? 'THE NEIGHBORHOOD IS YOURS' : state.reloadLeft > 0 ? 'RELOADING…' : state.clip === 0 ? 'PRESS R TO RELOAD' : 'SEMI-AUTO · CLICK TO FIRE'
   element('crew-status').hidden = !view.companions
+  element('secret-status').textContent = `${view.discoveries} / 9 SECRETS`
   const interact = element('interaction')
   interact.hidden = !view.interaction
   interact.querySelector('span')!.textContent = view.interaction
@@ -198,10 +212,38 @@ function start(selectedMode: Mode) {
   endDialog.close()
   landing.hidden = true
   hud.hidden = false
-  game.start(mode, element<HTMLInputElement>('crew').checked)
+  characterSelect.hidden = true
+  avatarPicker.setVisible(false)
+  game.start(mode, element<HTMLInputElement>('crew').checked, selectedAvatar)
 }
-element('start-survival').addEventListener('click', () => start('survival'))
-element('start-explore').addEventListener('click', () => start('explore'))
+const avatarPicker = new AvatarPicker(element<HTMLCanvasElement>('avatar-preview'))
+avatarPicker.setVisible(false)
+function openPicker(selectedMode: Mode) {
+  pendingMode = selectedMode
+  game.enableMenuAudio()
+  element('picker-mode').textContent = selectedMode === 'survival' ? 'SURVIVAL · FIVE WAVES' : 'PEACEFUL EXPLORATION'
+  characterSelect.hidden = false
+  avatarPicker.setVisible(true)
+  void game.prepareWorlds((ready, total) => {
+    element('prepare-status').textContent = `Building detailed interiors · ${ready} / ${total}`
+  }).then(() => {
+    const button = element<HTMLButtonElement>('confirm-character')
+    button.disabled = false
+    button.querySelector('span')!.textContent = pendingMode === 'survival' ? 'Defend Conch Street' : 'Explore the neighborhood'
+    element('prepare-status').textContent = 'Neighborhood ready · doors open automatically'
+  })
+}
+element('start-survival').addEventListener('click', () => openPicker('survival'))
+element('start-explore').addEventListener('click', () => openPicker('explore'))
+element('close-picker').addEventListener('click', () => { characterSelect.hidden = true; avatarPicker.setVisible(false) })
+element('confirm-character').addEventListener('click', () => start(pendingMode))
+document.querySelectorAll<HTMLButtonElement>('.avatar-card').forEach(card => {
+  card.addEventListener('click', () => {
+    selectedAvatar = card.dataset.avatar as Avatar
+    document.querySelectorAll('.avatar-card').forEach(item => item.classList.toggle('selected', item === card))
+    avatarPicker.select(selectedAvatar)
+  })
+})
 element('pause-button').addEventListener('click', () => game.pause())
 element('resume').addEventListener('click', () => { pauseDialog.close(); game.resume() })
 pauseDialog.addEventListener('cancel', e => { e.preventDefault(); pauseDialog.close(); game.resume() })
@@ -230,12 +272,15 @@ element('close-guide').addEventListener('click', closeGuide)
 guideDialog.addEventListener('cancel', e => { e.preventDefault(); closeGuide() })
 document.querySelectorAll<HTMLButtonElement>('.sound-button').forEach(button => {
   button.addEventListener('click', () => {
-    game.muted = !game.muted
-    button.innerHTML = icon(game.muted ? 'mute' : 'volume')
-    button.setAttribute('aria-label', game.muted ? 'Enable sound' : 'Mute sound')
+    game.setMuted(!game.muted)
+    document.querySelectorAll<HTMLButtonElement>('.sound-button').forEach(item => {
+      item.innerHTML = icon(game.muted ? 'mute' : 'volume')
+      item.setAttribute('aria-label', game.muted ? 'Enable sound' : 'Mute sound')
+    })
   })
 })
 element<HTMLInputElement>('sensitivity').addEventListener('input', e => { game.sensitivity = Number((e.target as HTMLInputElement).value) })
+element<HTMLInputElement>('music-volume').addEventListener('input', e => { game.setMusicVolume(Number((e.target as HTMLInputElement).value)) })
 element('touch-fire').addEventListener('pointerdown', e => { e.preventDefault(); game.shoot() })
 element('touch-reload').addEventListener('pointerdown', e => { e.preventDefault(); game.reload() })
 element('touch-interact').addEventListener('pointerdown', e => { e.preventDefault(); game.interact() })

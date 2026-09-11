@@ -1,9 +1,11 @@
 import * as T from 'three'
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
+import { caustics, surface } from './surfaces'
 
 const materials = new Map<string, T.MeshStandardMaterial>()
 export function material(color: T.ColorRepresentation, roughness = 0.8) {
   const key = `${color}:${roughness}`
-  if (!materials.has(key)) materials.set(key, new T.MeshStandardMaterial({ color, roughness }))
+  if (!materials.has(key)) materials.set(key, caustics(new T.MeshStandardMaterial({ color, roughness })))
   return materials.get(key)!
 }
 
@@ -17,17 +19,17 @@ export function mesh(parent: T.Object3D, geometry: T.BufferGeometry, color: T.Co
 }
 
 export function box(parent: T.Object3D, x: number, y: number, z: number, w: number, h: number, d: number, color: T.ColorRepresentation) {
-  return mesh(parent, new T.BoxGeometry(w, h, d), color, x, y, z)
+  return mesh(parent, new RoundedBoxGeometry(w, h, d, 2, Math.min(0.14, w * 0.12, h * 0.12, d * 0.12)), color, x, y, z)
 }
 
 export function ball(parent: T.Object3D, x: number, y: number, z: number, r: number, color: T.ColorRepresentation, scale = [1, 1, 1]) {
-  const m = mesh(parent, new T.SphereGeometry(r, 16, 12), color, x, y, z)
+  const m = mesh(parent, new T.SphereGeometry(r, 24, 16), color, x, y, z)
   m.scale.set(scale[0], scale[1], scale[2])
   return m
 }
 
 export function cylinder(parent: T.Object3D, x: number, y: number, z: number, r: number, h: number, color: T.ColorRepresentation, top = r) {
-  return mesh(parent, new T.CylinderGeometry(top, r, h, 16), color, x, y, z)
+  return mesh(parent, new T.CylinderGeometry(top, r, h, 28), color, x, y, z)
 }
 
 export function ring(parent: T.Object3D, x: number, y: number, z: number, r: number, tube: number, color: T.ColorRepresentation) {
@@ -66,15 +68,17 @@ export function label(parent: T.Object3D, text: string, x: number, y: number, z:
 }
 
 export function porthole(parent: T.Object3D, x: number, y: number, z: number, r = 0.85) {
-  ring(parent, x, y, z, r, r * 0.15, '#447d92')
-  const glass = cylinder(parent, x, y, z, r * 0.9, 0.1, '#8edce1')
+  const g = group(parent, x, y, z)
+  ring(g, 0, 0, 0, r, r * 0.15, '#447d92')
+  const glass = cylinder(g, 0, 0, 0, r * 0.9, 0.1, '#8edce1')
   glass.rotation.x = Math.PI / 2
-  box(parent, x, y, z + 0.08, 0.1, r * 1.7, 0.07, '#407e8c')
-  box(parent, x, y, z + 0.08, r * 1.7, 0.1, 0.07, '#407e8c')
+  box(g, 0, 0, 0.08, 0.1, r * 1.7, 0.07, '#407e8c')
+  box(g, 0, 0, 0.08, r * 1.7, 0.1, 0.07, '#407e8c')
   for (let i = 0; i < 8; i++) {
     const a = i * Math.PI / 4
-    ball(parent, x + Math.cos(a) * r, y + Math.sin(a) * r, z + 0.1, 0.055, '#d3eddf')
+    ball(g, Math.cos(a) * r, Math.sin(a) * r, 0.1, 0.055, '#d3eddf')
   }
+  return g
 }
 
 function leaf(parent: T.Object3D, angle: number, height: number, lean: number) {
@@ -94,6 +98,7 @@ export function pineapple(parent: T.Object3D, x: number, z: number) {
   const g = group(parent, x, 0, z)
   const body = mesh(g, new T.SphereGeometry(1, 40, 28), '#e99a31', 0, 7.5)
   body.scale.set(6, 8.2, 5.9)
+  body.material = surface('mottle', '#f1a32c', 6, 4)
   for (let direction = -1; direction <= 1; direction += 2) {
     for (let j = 0; j < 12; j++) {
       const points: T.Vector3[] = []
@@ -108,9 +113,10 @@ export function pineapple(parent: T.Object3D, x: number, z: number) {
   }
   for (let i = 0; i < 11; i++) leaf(g, i * 2.4, 5.2 + i % 4, (i % 2 ? 1 : -1) * (2 + i % 3))
   const door = group(g, 0, 0, 5.25)
-  box(door, 0, 1.7, 0, 2.5, 3.4, 0.4, '#3c7888')
-  ring(door, 0.55, 1.65, 0.25, 0.32, 0.065, '#b3d8d7')
-  for (let i = 0; i < 5; i++) box(door, -1 + i * 0.5, 1.7, 0.23, 0.025, 3.2, 0.03, '#6ca6b2')
+  door.name = 'Pineapple hatch surround'
+  for (const s of [-1, 1]) box(door, s * 1.65, 1.9, 0.3, 0.3, 3.8, 0.55, '#8cc3d7')
+  box(door, 0, 3.85, 0.3, 3.6, 0.3, 0.55, '#8cc3d7')
+  for (const s of [-1, 1]) for (let y = 0.4; y < 3.8; y += 0.55) ball(door, s * 1.65, y, 0.6, 0.06, '#dcf4ed')
   porthole(g, -2.6, 7.8, 5.3, 1.05)
   porthole(g, 2.15, 11.65, 4.95, 0.85)
   cylinder(g, 5.35, 8.7, 0, 0.4, 3, '#607f83')
@@ -122,29 +128,32 @@ export function pineapple(parent: T.Object3D, x: number, z: number) {
 export function moai(parent: T.Object3D, x: number, z: number) {
   const g = group(parent, x, 0, z)
   const head = cylinder(g, 0, 9, 0, 5, 18, '#567e90', 4.15)
-  head.geometry = new T.CylinderGeometry(4.15, 5, 18, 7)
+  head.material = surface('mottle', '#527f9d', 3, 3)
   box(g, -5, 10.5, 0, 2.1, 7.7, 3.8, '#496e83')
   box(g, 5, 10.5, 0, 2.1, 7.7, 3.8, '#496e83')
   box(g, 0, 9.2, 5.2, 1.65, 5.2, 2.9, '#648d9d')
   box(g, 0, 13.8, 4.55, 8.5, 1.9, 1.5, '#547a8c')
   porthole(g, -2.5, 11.9, 4.8, 0.92)
   porthole(g, 2.5, 11.9, 4.8, 0.92)
-  box(g, 0, 2, 4.7, 2.55, 4, 0.45, '#584b3f')
-  for (let i = 0; i < 6; i++) box(g, -1.1 + i * 0.43, 2, 4.96, 0.055, 3.8, 0.05, '#92714f')
-  ball(g, 0.85, 1.9, 5.04, 0.1, '#deb574')
+  for (const s of [-1, 1]) box(g, s * 1.65, 1.9, 5.25, 0.3, 3.8, 0.55, '#687e83')
+  box(g, 0, 3.85, 5.25, 3.6, 0.3, 0.55, '#687e83')
   return g
 }
 
 export function rock(parent: T.Object3D, x: number, z: number) {
   const g = group(parent, x, 0, z)
-  const dome = mesh(g, new T.SphereGeometry(6.5, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), '#ae7772', 0, 0.3)
+  const lid = group(g, 0, 0.3, -5.5)
+  lid.rotation.x = -0.8
+  const dome = mesh(lid, new T.SphereGeometry(6.5, 40, 24, 0, Math.PI * 2, 0, Math.PI / 2), '#ae7772', 0, 0, 5.5)
   dome.scale.set(1.15, 0.76, 0.92)
-  dome.rotation.x = -0.14
-  cylinder(g, 0, 6.5, -0.7, 0.12, 2.1, '#94784c')
-  box(g, 0, 7.15, -0.7, 2.4, 0.16, 0.15, '#aa925e')
-  const arrow = mesh(g, new T.ConeGeometry(0.4, 0.7, 3), '#ad9057', 1.45, 7.15, -0.7)
+  dome.material = surface('mottle', '#ae7768', 2, 1)
+  cylinder(lid, 0, 6.5, 4.8, 0.12, 2.1, '#94784c')
+  box(lid, 0, 7.15, 4.8, 2.4, 0.16, 0.15, '#d5b275')
+  const arrow = mesh(lid, new T.ConeGeometry(0.4, 0.7, 3), '#d5b275', 1.45, 7.15, 4.8)
   arrow.rotation.z = -Math.PI / 2
-  box(g, 0, 0.3, 5.5, 2.7, 0.6, 2.5, '#5e4946')
+  const rim = ring(g, 0, 0.04, 0, 6, 0.25, '#b69862')
+  rim.rotation.x = Math.PI / 2
+  cylinder(g, 0, -0.02, 0, 5.8, 0.04, '#554c40')
   return g
 }
 
@@ -170,8 +179,8 @@ export function table(parent: T.Object3D, x: number, z: number, color = '#b39058
 export function tv(parent: T.Object3D, x: number, z: number, helmet = false) {
   cylinder(parent, x, 0.45, z, 0.7, 0.9, '#947143')
   if (helmet) {
-    ball(parent, x, 1.6, z, 0.9, '#a8b4aa')
-    ring(parent, x, 1.65, z + 0.75, 0.58, 0.12, '#c5ccaf')
+    ball(parent, x, 1.6, z, 0.9, '#a57736')
+    ring(parent, x, 1.65, z + 0.75, 0.58, 0.12, '#d3ae63')
     const face = cylinder(parent, x, 1.65, z + 0.76, 0.54, 0.07, '#2e6471')
     face.rotation.x = Math.PI / 2
   } else {
@@ -187,15 +196,25 @@ export function tv(parent: T.Object3D, x: number, z: number, helmet = false) {
 export function bed(parent: T.Object3D, x: number, z: number, sponge = false) {
   box(parent, x, 0.4, z, 3.2, 0.4, 4.5, '#967548')
   for (let i = 0; i < (sponge ? 3 : 1); i++) box(parent, x, 0.75 + i * 0.25, z, 3, 0.25, 4.2, '#f5e8be')
-  box(parent, x, sponge ? 1.43 : 0.98, z + 0.5, 3.05, 0.14, 3, sponge ? '#77b8a7' : '#c097bd')
+  box(parent, x, sponge ? 1.43 : 0.98, z + 0.5, 3.05, 0.14, 3, sponge ? '#7e568d' : '#c097bd')
   box(parent, x, sponge ? 1.5 : 1.08, z - 1.35, 2.1, 0.3, 0.7, '#fff6d8')
   for (const sx of [-1, 1]) {
     for (const sz of [-1, 1]) {
       cylinder(parent, x + sx * 1.65, 2.2, z + sz * 2.1, 0.12, 4.4, '#b69961')
     }
   }
-  box(parent, x, 4.3, z, 3.55, 0.15, 4.6, sponge ? '#a5b789' : '#829dad')
-  if (sponge) ring(parent, x, 2.3, z - 2.15, 0.65, 0.22, '#a0b882')
+  if (!sponge) box(parent, x, 4.3, z, 3.55, 0.15, 4.6, '#829dad')
+  if (sponge) {
+    ring(parent, x, 2.3, z - 2.15, 0.95, 0.25, '#83a466')
+    for (let i = 0; i < 10; i++) {
+      const f = group(parent, x - 1.1 + (i % 3) * 1.05, 1.515, z - 0.5 + Math.floor(i / 3) * 0.68)
+      f.rotation.x = -Math.PI / 2
+      for (let p = 0; p < 5; p++) {
+        const petal = ring(f, Math.sin(p * 1.256) * 0.1, Math.cos(p * 1.256) * 0.1, 0, 0.1, 0.009, '#d2b080')
+        petal.scale.y = 1.3
+      }
+    }
+  }
 }
 
 export function bookshelf(parent: T.Object3D, x: number, z: number, width = 3.2) {

@@ -1,13 +1,19 @@
 import * as T from 'three'
 import { buildWorld, homeX } from './world'
 import type { Location, World, Interaction } from './world'
-import { character, pistol, ball, label } from './models'
+import { ball, label } from './models'
+import { createCharacter, createFirstPersonRig } from './characters'
+import type { Avatar } from './characters'
+import { Soundtrack } from './music'
+import type { MusicMood } from './music'
+import { DoorwayViews, crossesThreshold, portalRotation, throughPortal } from './portals'
+import { waterStrength, waterTime } from './surfaces'
 import { SurvivalState, distance, moveWithCollision, lineClear, findPath, waveCount, collides } from './rules'
 import type { Point, Mode } from './rules'
 
 export type GameView = {
   state: SurvivalState; location: Location; world: World; room: string; interaction: string;
-  door: number; sheltered: boolean; companions: boolean; pointerLocked: boolean
+  door: number; sheltered: boolean; companions: boolean; pointerLocked: boolean; discoveries: number
 }
 type Enemy = {
   body: T.Group; hp: number; location: Location; attack: number;
@@ -38,7 +44,8 @@ export class Game {
   private companions: Companion[] = []
   private particles: Particle[] = []
   private beams: Beam[] = []
-  private gun = pistol()
+  private gun = createFirstPersonRig('explorer')
+  private eyeHeight = 1.88
   private recoil = 0
   private lastTime = 0
   private spawnClock = 0
@@ -51,7 +58,7 @@ export class Game {
   private usedHomes = new Set<string>()
   private audio: AudioContext | null = null
   private touchMove = { x: 0, z: 0 }
-  private lookPointer: { id: number; x: number; y: number } | null = null
+  private lookPointer: { id: number; x: number; y: number; moved: boolean } | null = null
   private dragLooking = false
   private sun: T.DirectionalLight
   private hemisphere: T.HemisphereLight
@@ -62,6 +69,11 @@ export class Game {
   private onHit: () => void
   private waterMotes: T.Points
   private lastPhase = 'ready'
+  private soundtrack = new Soundtrack()
+  private doorwayViews = new DoorwayViews()
+  private discoveries = new Set<string>()
+  private lastMusic: MusicMood = 'menu'
+  private preparing: Promise<void> | null = null
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -134,19 +146,24 @@ export class Game {
     canvas.addEventListener('pointerdown', e => {
       if (!this.playing || this.paused) return
       if (e.pointerType === 'touch' || !this.pointerLocked) {
-        this.lookPointer = { id: e.pointerId, x: e.clientX, y: e.clientY }
+        this.lookPointer = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false }
         canvas.setPointerCapture(e.pointerId)
       }
-      if (e.pointerType !== 'touch') this.shoot()
+      if (e.pointerType !== 'touch' && this.pointerLocked) this.shoot()
     })
     canvas.addEventListener('pointermove', e => {
       if (this.paused || !this.lookPointer || this.lookPointer.id !== e.pointerId || this.pointerLocked) return
-      this.look(e.clientX - this.lookPointer.x, e.clientY - this.lookPointer.y)
+      const dx = e.clientX - this.lookPointer.x, dy = e.clientY - this.lookPointer.y
+      if (Math.hypot(dx, dy) > 1.5) this.lookPointer.moved = true
+      this.look(dx, dy)
       this.lookPointer.x = e.clientX
       this.lookPointer.y = e.clientY
     })
+    canvas.addEventListener('pointerup', e => {
+      if (e.pointerType !== 'touch' && this.lookPointer && !this.lookPointer.moved) this.shoot()
+      this.lookPointer = null
+    })
     const release = () => { this.lookPointer = null }
-    canvas.addEventListener('pointerup', release)
     canvas.addEventListener('pointercancel', release)
     canvas.addEventListener('contextmenu', e => e.preventDefault())
     this.animate(0)
@@ -155,6 +172,19 @@ export class Game {
   private getWorld(location: Location) {
     if (!this.worlds.has(location)) this.worlds.set(location, buildWorld(location))
     return this.worlds.get(location)!
+  }
+
+  prepareWorlds(onProgress?: (ready: number, total: number) => void) {
+    if (this.preparing) return this.preparing
+    const locations: Location[] = ['sponge0', 'sponge1', 'sponge2', 'squid0', 'squid1', 'patrick0', 'roof']
+    this.preparing = (async () => {
+      for (const [index, location] of locations.entries()) {
+        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+        this.getWorld(location)
+        onProgress?.(index + 1, locations.length)
+      }
+    })()
+    return this.preparing
   }
 
   private resize() {
@@ -183,7 +213,7 @@ export class Game {
     }
   }
 
-  start(mode: Mode, companions: boolean) {
+  start(mode: Mode, companions: boolean, avatar: Avatar) {
     for (const e of this.enemies) this.disposeActor(e.body)
     for (const c of this.companions) this.disposeActor(c.body)
     this.clearEffects()
@@ -194,6 +224,11 @@ export class Game {
     this.doors = { sponge: 100, squid: 100, patrick: 100 }
     this.usedHomes.clear()
     this.supplyTimes.clear()
+    this.discoveries.clear()
+    this.eyeHeight = avatar === 'patrick' ? 2.13 : avatar === 'squid' ? 2.2 : avatar === 'sponge' ? 1.83 : 1.88
+    this.camera.remove(this.gun)
+    this.gun = createFirstPersonRig(avatar)
+    this.camera.add(this.gun)
     this.lastPhase = 'ready'
     this.playing = true
     this.paused = false
@@ -201,21 +236,31 @@ export class Game {
     this.keys.clear()
     this.setTouchMove(0, 0)
     if (companions) {
-      for (const kind of ['sponge', 'patrick'] as const) {
-        const body = character(kind)
+      for (const kind of (['sponge', 'patrick'] as const).filter(kind => kind !== avatar)) {
+        const body = createCharacter(kind)
         label(body, kind === 'sponge' ? 'SPONGEBOB' : 'PATRICK', 0, 2.9, 0, '#e5e4ba', 2.4)
         this.companions.push({ kind, body, cooldown: 1, path: [], repath: 0 })
         this.scene.add(body)
       }
     }
     this.changeLocation('street')
-    this.camera.position.set(11, 1.8, 25)
+    this.camera.position.set(11, this.eyeHeight, 25)
     this.yaw = -0.08
     this.pitch = 0
-    this.gun.visible = mode === 'survival'
+    this.setRigVisibility(true)
     this.lock()
     this.onToast(mode === 'survival' ? 'The tide is turning. Get ready for the first wave.' : 'Take your time. All three homes are yours to explore.')
     this.sound(440, 0.1, 'sine', 0.035)
+    this.lastMusic = mode === 'explore' ? 'explore' : 'explore'
+    this.soundtrack.setMood(this.lastMusic)
+    void this.soundtrack.start()
+  }
+
+  private setRigVisibility(visible: boolean) {
+    this.gun.visible = visible
+    this.gun.traverse(object => {
+      if (object.userData.hideInExploration) object.visible = this.state.mode === 'survival'
+    })
   }
 
   private disposeActor(body: T.Group) {
@@ -229,20 +274,20 @@ export class Game {
     })
   }
 
-  private changeLocation(location: Location) {
+  private changeLocation(location: Location, placement?: Point, yaw?: number) {
     const oldHome = this.world.home
     this.scene.remove(this.world.root)
     this.location = location
     this.world = this.getWorld(location)
     this.scene.add(this.world.root)
-    this.camera.position.set(this.world.spawn.x, 1.8, this.world.spawn.z)
-    if (location === 'street' && oldHome) {
-      this.camera.position.set(homeX[oldHome], 1.8, 0.5)
+    this.camera.position.set(placement?.x ?? this.world.spawn.x, this.eyeHeight, placement?.z ?? this.world.spawn.z)
+    if (!placement && location === 'street' && oldHome) {
+      this.camera.position.set(homeX[oldHome], this.eyeHeight, 0.5)
       this.yaw = Math.PI
-    } else {
+    } else if (yaw === undefined) {
       this.yaw = 0
-    }
-    this.pitch = 0
+    } else this.yaw = yaw
+    if (!placement) this.pitch = 0
     if (this.world.home && !this.usedHomes.has(this.world.home)) {
       this.usedHomes.add(this.world.home)
       if (this.state.mode === 'survival') this.onToast('Door shut behind you. Fish can break in—keep moving.')
@@ -259,7 +304,8 @@ export class Game {
     this.hemisphere.intensity = outdoors ? 2.4 : 3.3
     this.sun.intensity = outdoors ? 3.6 : 0.65
     this.waterMotes.visible = outdoors
-    this.gun.visible = this.state.mode === 'survival'
+    this.setRigVisibility(this.playing)
+    this.syncMusic()
     this.updateUI()
   }
 
@@ -270,6 +316,7 @@ export class Game {
     this.setTouchMove(0, 0)
     this.lookPointer = null
     if (document.pointerLockElement) document.exitPointerLock()
+    this.soundtrack.pause()
     this.onPause()
   }
 
@@ -277,19 +324,23 @@ export class Game {
     if (!this.playing) return
     this.paused = false
     this.lock()
+    void this.soundtrack.resume()
   }
 
   mainMenu() {
     this.playing = false
     this.paused = false
     this.keys.clear()
-    this.gun.visible = false
+    this.setRigVisibility(false)
     this.enemies.forEach(e => this.disposeActor(e.body))
     this.companions.forEach(c => this.disposeActor(c.body))
     this.enemies = []
     this.companions = []
     this.changeLocation('street')
-    this.gun.visible = false
+    this.setRigVisibility(false)
+    this.lastMusic = 'menu'
+    this.soundtrack.setMood('menu')
+    void this.soundtrack.resume()
     if (document.pointerLockElement) document.exitPointerLock()
   }
 
@@ -299,10 +350,7 @@ export class Game {
     if (!this.playing || this.paused) return
     const i = this.closestInteraction()
     if (!i) return
-    if (i.kind === 'travel' && i.target) {
-      this.changeLocation(i.target)
-      this.sound(250, 0.15, 'sine', 0.04)
-    } else if (i.kind === 'supply') {
+    if (i.kind === 'supply') {
       const last = this.supplyTimes.get(this.location) ?? -100
       if (this.state.elapsed - last < 30) {
         this.onToast(`Supplies restock in ${Math.ceil(30 - (this.state.elapsed - last))}s.`)
@@ -312,7 +360,31 @@ export class Game {
       this.state.supply()
       this.onToast('+35 health · +36 rounds')
       this.sound(660, 0.14, 'sine', 0.045)
+    } else if (i.kind === 'secret' && i.secretId && i.discovery) {
+      if (this.discoveries.has(i.secretId)) {
+        this.onToast('You already found this neighborhood secret.')
+        return
+      }
+      this.discoveries.add(i.secretId)
+      this.onToast(`${i.discovery} · ${this.discoveries.size}/9 secrets`)
+      this.sound(880, 0.35, 'sine', 0.04)
+      this.updateUI()
     }
+  }
+
+  setMuted(muted: boolean) {
+    this.muted = muted
+    this.soundtrack.setMuted(muted)
+  }
+
+  setMusicVolume(volume: number) {
+    this.soundtrack.setVolume(volume)
+  }
+
+  enableMenuAudio() {
+    this.lastMusic = 'menu'
+    this.soundtrack.setMood('menu')
+    void this.soundtrack.start()
   }
 
   repairDoor() {
@@ -394,11 +466,12 @@ export class Game {
   }
 
   private closestInteraction(): Interaction | undefined {
-    return this.world.interactions.filter(i => distance(i.at, this.camera.position) < 2.5)
+    return this.world.interactions.filter(i => i.kind !== 'travel' && distance(i.at, this.camera.position) < 2.5)
       .sort((a, b) => distance(a.at, this.camera.position) - distance(b.at, this.camera.position))[0]
   }
 
   private updateUI() {
+    this.syncMusic()
     const room = [...this.world.zones].reverse().find(z => collides(this.camera.position, z, 0))?.name ?? 'Bikini Bottom'
     const home = this.world.home
     const insideFish = this.enemies.some(e => e.location === this.location)
@@ -408,10 +481,27 @@ export class Game {
       door: home ? this.doors[home] : 0,
       sheltered: !!home && this.doors[home] > 0 && !insideFish,
       companions: this.companionsEnabled, pointerLocked: this.pointerLocked,
+      discoveries: this.discoveries.size,
     })
   }
 
+  private syncMusic() {
+    let mood: MusicMood = 'menu'
+    if (this.playing) {
+      if (this.state.phase === 'won') mood = 'won'
+      else if (this.state.phase === 'lost') mood = 'lost'
+      else if (this.state.phase === 'wave' && this.state.health < 30) mood = 'danger'
+      else if (this.state.phase === 'wave') mood = 'combat'
+      else if (this.location !== 'street' && this.location !== 'roof') mood = 'home'
+      else mood = 'explore'
+    }
+    if (mood === this.lastMusic) return
+    this.lastMusic = mood
+    this.soundtrack.setMood(mood)
+  }
+
   private movePlayer(dt: number) {
+    const before = { x: this.camera.position.x, z: this.camera.position.z }
     let strafe = Number(this.keys.has('KeyD') || this.keys.has('ArrowRight')) - Number(this.keys.has('KeyA') || this.keys.has('ArrowLeft')) + this.touchMove.x
     let forward = Number(this.keys.has('KeyW') || this.keys.has('ArrowUp')) - Number(this.keys.has('KeyS') || this.keys.has('ArrowDown')) - this.touchMove.z
     const length = Math.hypot(strafe, forward)
@@ -420,19 +510,31 @@ export class Game {
     const dx = (strafe * Math.cos(this.yaw) - forward * Math.sin(this.yaw)) * speed * dt
     const dz = (-strafe * Math.sin(this.yaw) - forward * Math.cos(this.yaw)) * speed * dt
     const next = moveWithCollision(this.camera.position, dx, dz, this.world.walls)
+    const portal = this.world.portals.find(candidate => crossesThreshold(before, next, candidate))
+    if (portal) {
+      const target = this.getWorld(portal.target)
+      const exit = target.portals.find(candidate => candidate.id === portal.exitId)
+      if (exit) {
+        const arrival = throughPortal(next, portal, exit)
+        this.changeLocation(portal.target, arrival, this.yaw + portalRotation(portal, exit))
+        this.sound(260, 0.12, 'sine', 0.025)
+        return
+      }
+    }
     this.camera.position.x = next.x
     this.camera.position.z = next.z
     if (length > 0.05) this.bob += dt * speed * 1.8
-    this.camera.position.y = 1.8 + (length > 0.05 ? Math.sin(this.bob) * 0.035 : 0)
+    this.camera.position.y = this.eyeHeight + (length > 0.05 ? Math.sin(this.bob) * 0.035 : 0)
     this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ')
     this.recoil = Math.max(0, this.recoil - dt * 7)
-    this.gun.position.set(0.3 + Math.sin(this.bob * 0.5) * 0.008, -0.29 - (this.state.reloadLeft > 0 ? Math.sin(this.state.reloadLeft / 1.35 * Math.PI) * 0.3 : 0), -0.62 + this.recoil * 0.09)
+    const offset = this.gun.userData.attachOffset as T.Vector3
+    this.gun.position.set(offset.x + Math.sin(this.bob * 0.5) * 0.008, offset.y - (this.state.reloadLeft > 0 ? Math.sin(this.state.reloadLeft / 1.35 * Math.PI) * 0.3 : 0), offset.z + this.recoil * 0.09)
     this.gun.rotation.set(this.recoil * 0.16, 0, this.state.reloadLeft > 0 ? -0.45 : -0.03)
   }
 
   private spawnEnemy() {
     const angle = Math.random() * Math.PI * 2
-    const body = character('fish')
+    const body = createCharacter('fish')
     body.position.set(Math.sin(angle) * 48, 0, 15 + Math.cos(angle) * 39)
     this.scene.add(body)
     body.visible = this.location === 'street'
@@ -623,6 +725,7 @@ export class Game {
           if (document.pointerLockElement) document.exitPointerLock()
           this.onEnd(this.state.phase === 'won')
         }
+        this.syncMusic()
       }
       this.updateEffects(dt)
       this.uiClock -= dt
@@ -630,6 +733,15 @@ export class Game {
     }
     this.waterMotes.rotation.y = this.time * 0.002
     this.waterMotes.position.y = Math.sin(this.time * 0.08) * 2
+    waterTime.value = this.time
+    waterStrength.value = this.location === 'street' || this.location === 'roof' ? 1 : 0.13
+    if (this.playing) {
+      const actors = [
+        ...this.enemies.map(enemy => ({ body: enemy.body, location: enemy.location })),
+        ...this.companions.map(companion => ({ body: companion.body, location: this.location })),
+      ]
+      this.doorwayViews.render(this.renderer, this.camera, this.world, location => this.getWorld(location), actors)
+    }
     this.renderer.render(this.scene, this.camera)
   }
 }
