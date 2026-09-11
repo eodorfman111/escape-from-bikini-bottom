@@ -3,20 +3,32 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "main": "desktop/main.mjs",
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 3000",
     "build": "tsc --noEmit && vite build",
-    "typecheck": "tsc --noEmit",
-    "lint": "eslint src",
+    "typecheck": "tsc --noEmit && tsc -p desktop/tsconfig.json",
+    "lint": "eslint src desktop vite.config.ts",
     "test": "vitest run",
-    "preview": "vite preview --host 0.0.0.0 --port 3000"
+    "preview": "vite preview --host 0.0.0.0 --port 3000",
+    "desktop:build": "npm run build -- --mode desktop",
+    "desktop:dev": "npm run desktop:start",
+    "desktop:start": "npm run desktop:build && electron .",
+    "desktop:test": "vitest run desktop",
+    "desktop:package": "npm run desktop:build && node desktop/package.mjs",
+    "desktop:package:win": "npm run desktop:build && node desktop/package.mjs win32 x64",
+    "desktop:package:mac-arm64": "npm run desktop:build && node desktop/package.mjs darwin arm64",
+    "desktop:package:mac-x64": "npm run desktop:build && node desktop/package.mjs darwin x64",
+    "desktop:package:linux": "npm run desktop:build && node desktop/package.mjs linux x64"
   },
   "dependencies": {
     "three": "0.180.0"
   },
   "devDependencies": {
+    "@electron/packager": "20.3.0",
     "@eslint/js": "9.35.0",
     "@types/three": "0.180.0",
+    "electron": "44.2.0",
     "eslint": "9.35.0",
     "typescript": "5.9.2",
     "typescript-eslint": "8.42.0",
