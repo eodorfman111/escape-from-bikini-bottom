@@ -57,7 +57,11 @@ try {
     },
   })
   for (const output of outputs) {
-    if (platform === 'win32') await cp(join(root, 'desktop', 'WINDOWS-README.txt'), join(output, 'START-HERE.txt'))
+    if (platform === 'win32') {
+      await cp(join(root, 'desktop', 'WINDOWS-README.txt'), join(output, 'START-HERE.txt'))
+      const launcher = await readFile(join(root, 'desktop', 'start-windows.cmd'), 'utf8')
+      await writeFile(join(output, 'Start Conch Street.cmd'), launcher.replace(/\r?\n/g, '\r\n'))
+    }
     log(`Standalone application: ${output}`)
   }
 } finally {

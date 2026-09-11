@@ -44,6 +44,12 @@ Packaging replaces the previous generated folder for that target.
 - **Windows:** distribute the entire output folder, usually as a ZIP. After
   extraction, run `conch-street.exe`. Do not distribute the executable alone.
   The package includes `START-HERE.txt` with extraction and gameplay instructions.
+  If the executable opens nothing, run `Start Conch Street.cmd`. It checks core
+  runtime files, waits for the game to exit and reports its exit code. Diagnostic
+  logs go to `%LOCALAPPDATA%\ConchStreet\logs` (or a `logs/` folder beside the
+  launcher if `LOCALAPPDATA` is unavailable). Launcher output, main-process
+  console output and Chromium diagnostics have separate files. The launcher
+  clears `ELECTRON_RUN_AS_NODE` and keeps sandbox/security settings enabled.
   Windows version metadata uses the descriptive publisher label
   `Conch Street fan project`; it is not a code-signing identity.
 - **macOS:** distribute `ConchStreet.app` from the output folder. Package/sign on
@@ -79,7 +85,10 @@ resources/licenses. Keep those together in the distributed application.
   `window.open`, synthetic DOM clicks, and navigation never launch a browser.
   No timer-based "recent user gesture" fallback is used.
 - Page zoom is fixed at 100% to keep native mouse coordinates aligned with
-  anchor hit testing. The Game menu offers fullscreen and quit.
+  anchor hit testing. Visual zoom limits are configured after loading the page,
+  once the renderer can respond to IPC. The window is visible during loading;
+  startup failures and renderer crashes produce an error dialog and exit code 1.
+  The Game menu offers fullscreen and quit.
 - Desktop builds inject a Content Security Policy that restricts resources to
   local assets and disallows frames, forms, objects, and remote scripts.
   Inline styles remain enabled for the game's generated markup.
