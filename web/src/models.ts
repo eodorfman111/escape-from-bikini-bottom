@@ -19,11 +19,12 @@ export function mesh(parent: T.Object3D, geometry: T.BufferGeometry, color: T.Co
 }
 
 export function box(parent: T.Object3D, x: number, y: number, z: number, w: number, h: number, d: number, color: T.ColorRepresentation) {
-  return mesh(parent, new RoundedBoxGeometry(w, h, d, 2, Math.min(0.14, w * 0.12, h * 0.12, d * 0.12)), color, x, y, z)
+  return mesh(parent, new RoundedBoxGeometry(w, h, d, Math.min(w, h, d) < 0.25 ? 1 : 2, Math.min(0.14, w * 0.12, h * 0.12, d * 0.12)), color, x, y, z)
 }
 
 export function ball(parent: T.Object3D, x: number, y: number, z: number, r: number, color: T.ColorRepresentation, scale = [1, 1, 1]) {
-  const m = mesh(parent, new T.SphereGeometry(r, 24, 16), color, x, y, z)
+  const segments = r < 0.15 ? 10 : r < 0.4 ? 16 : 24
+  const m = mesh(parent, new T.SphereGeometry(r, segments, Math.round(segments * 2 / 3)), color, x, y, z)
   m.scale.set(scale[0], scale[1], scale[2])
   return m
 }

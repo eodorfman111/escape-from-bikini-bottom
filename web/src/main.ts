@@ -6,6 +6,7 @@ import { researchMarkup } from './research'
 import { avatars } from './characters'
 import type { Avatar } from './characters'
 import { AvatarPicker } from './avatar-picker'
+import type { GraphicsQuality } from './graphics'
 
 const icons: Record<string, string> = {
   flower: '<path d="M12 8C3-4-3 10 7 12c-13 5 1 15 4 4 5 13 15 0 5-4 13-4 0-15-4-4Z"/><circle cx="12" cy="12" r="2"/>',
@@ -71,6 +72,7 @@ app.innerHTML = `
     <button id="resume" class="primary-button">Back to it ${icon('arrow')}</button>
     <div class="settings-row"><label for="sensitivity">Look sensitivity</label><input id="sensitivity" type="range" min="0.3" max="2" step="0.1" value="1" /></div>
     <div class="settings-row"><label for="music-volume">Music volume</label><input id="music-volume" type="range" min="0" max="1" step="0.05" value="0.65" /></div>
+    <div class="settings-row"><label for="graphics">Graphics</label><select id="graphics"><option value="auto">Automatic</option><option value="high">High detail</option><option value="economy">Economy · slower computers</option></select></div>
     <div class="pause-controls"><span><kbd>WASD</kbd> Move · <kbd>SHIFT</kbd> Sprint</span><span><kbd>MOUSE</kbd> Look · <kbd>CLICK</kbd> Fire</span><span>Walk through open doors and stairs automatically</span><span><kbd>E</kbd> Supplies & secrets · <kbd>R</kbd> Reload · <kbd>B</kbd> Rebuild</span><span><kbd>ESC / P</kbd> Pause · Drag to look if capture is unavailable</span></div>
     <p class="tip">Closed doors buy time. Supply crates refill every 30 seconds. Upstairs won’t keep the fish out forever.</p>
     <div class="dialog-secondary"><button id="restart">Start over</button><button id="menu">Main menu</button></div>
@@ -174,7 +176,13 @@ function update(view: GameView) {
   element('reserve-number').textContent = String(state.reserve)
   element('weapon-name').textContent = state.mode === 'explore' ? 'EXPLORER MODE' : 'REEF PISTOL'
   element('reload-state').textContent = state.mode === 'explore' ? 'THE NEIGHBORHOOD IS YOURS' : state.reloadLeft > 0 ? 'RELOADING…' : state.clip === 0 ? 'PRESS R TO RELOAD' : 'SEMI-AUTO · CLICK TO FIRE'
-  element('crew-status').hidden = !view.companions
+  const crew = element('crew-status')
+  crew.hidden = view.companions.length === 0
+  crew.querySelector('.sponge-face')!.toggleAttribute('hidden', !view.companions.includes('sponge'))
+  crew.querySelector('.patrick-face')!.toggleAttribute('hidden', !view.companions.includes('patrick'))
+  const crewText = view.companions.length === 2 ? 'THE GANG’S ALL HERE' : view.companions[0] === 'patrick' ? 'PATRICK HAS YOUR BACK' : 'SPONGEBOB HAS YOUR BACK'
+  const support = view.companions.length === 2 ? 'Bubble support + rock toss' : view.companions[0] === 'patrick' ? 'Rock toss support' : 'Bubble support'
+  crew.querySelector(':scope > span:last-child')!.innerHTML = `${crewText}<small>${support}</small>`
   element('secret-status').textContent = `${view.discoveries} / 9 SECRETS`
   const interact = element('interaction')
   interact.hidden = !view.interaction
@@ -213,6 +221,7 @@ function start(selectedMode: Mode) {
   landing.hidden = true
   hud.hidden = false
   characterSelect.hidden = true
+  game.setMenuCovered(false)
   avatarPicker.setVisible(false)
   game.start(mode, element<HTMLInputElement>('crew').checked, selectedAvatar)
 }
@@ -223,6 +232,7 @@ function openPicker(selectedMode: Mode) {
   game.enableMenuAudio()
   element('picker-mode').textContent = selectedMode === 'survival' ? 'SURVIVAL · FIVE WAVES' : 'PEACEFUL EXPLORATION'
   characterSelect.hidden = false
+  game.setMenuCovered(true)
   avatarPicker.setVisible(true)
   void game.prepareWorlds((ready, total) => {
     element('prepare-status').textContent = `Building detailed interiors · ${ready} / ${total}`
@@ -235,7 +245,7 @@ function openPicker(selectedMode: Mode) {
 }
 element('start-survival').addEventListener('click', () => openPicker('survival'))
 element('start-explore').addEventListener('click', () => openPicker('explore'))
-element('close-picker').addEventListener('click', () => { characterSelect.hidden = true; avatarPicker.setVisible(false) })
+element('close-picker').addEventListener('click', () => { characterSelect.hidden = true; avatarPicker.setVisible(false); game.setMenuCovered(false) })
 element('confirm-character').addEventListener('click', () => start(pendingMode))
 document.querySelectorAll<HTMLButtonElement>('.avatar-card').forEach(card => {
   card.addEventListener('click', () => {
@@ -281,6 +291,7 @@ document.querySelectorAll<HTMLButtonElement>('.sound-button').forEach(button => 
 })
 element<HTMLInputElement>('sensitivity').addEventListener('input', e => { game.sensitivity = Number((e.target as HTMLInputElement).value) })
 element<HTMLInputElement>('music-volume').addEventListener('input', e => { game.setMusicVolume(Number((e.target as HTMLInputElement).value)) })
+element<HTMLSelectElement>('graphics').addEventListener('change', e => { game.setGraphics((e.target as HTMLSelectElement).value as GraphicsQuality) })
 element('touch-fire').addEventListener('pointerdown', e => { e.preventDefault(); game.shoot() })
 element('touch-reload').addEventListener('pointerdown', e => { e.preventDefault(); game.reload() })
 element('touch-interact').addEventListener('pointerdown', e => { e.preventDefault(); game.interact() })

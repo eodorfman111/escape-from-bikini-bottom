@@ -84,25 +84,27 @@ export function surface(kind: Surface, color: string, repeatX = 1, repeatY = 1) 
 export function batchStatic(root: T.Group) {
   root.updateMatrixWorld(true)
   const inverse = root.matrixWorld.clone().invert()
-  const groups = new Map<T.Material, { meshes: T.Mesh<T.BufferGeometry, T.Material>[]; geometries: T.BufferGeometry[] }>()
+  const groups = new Map<string, { material: T.Material; meshes: T.Mesh<T.BufferGeometry, T.Material>[]; geometries: T.BufferGeometry[] }>()
   function visit(object: T.Object3D) {
     if (object.userData.dynamic) return
     if (object instanceof T.Mesh && object.material instanceof T.Material && !object.morphTargetInfluences) {
       const geometry = object.geometry.clone().applyMatrix4(inverse.clone().multiply(object.matrixWorld))
-      const existing = groups.get(object.material) ?? { meshes: [], geometries: [] }
+      const position = object.getWorldPosition(new T.Vector3()).applyMatrix4(inverse)
+      const key = `${object.material.uuid}:${Math.floor(position.x / 16)}:${Math.floor(position.z / 16)}`
+      const existing = groups.get(key) ?? { material: object.material, meshes: [], geometries: [] }
       existing.meshes.push(object)
       existing.geometries.push(geometry.index ? geometry.toNonIndexed() : geometry)
       if (geometry.index) geometry.dispose()
-      groups.set(object.material, existing)
+      groups.set(key, existing)
     }
     for (const child of object.children) visit(child)
   }
   visit(root)
-  for (const [material, group] of groups) {
+  for (const group of groups.values()) {
     if (group.meshes.length > 1) {
       const merged = mergeGeometries(group.geometries)
       if (merged) {
-        const mesh = new T.Mesh(merged, material)
+        const mesh = new T.Mesh(merged, group.material)
         mesh.castShadow = group.meshes.some(m => m.castShadow)
         mesh.receiveShadow = true
         mesh.name = 'Batched scenery'

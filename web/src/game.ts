@@ -7,13 +7,15 @@ import type { Avatar } from './characters'
 import { Soundtrack } from './music'
 import type { MusicMood } from './music'
 import { DoorwayViews, crossesThreshold, portalRotation, throughPortal } from './portals'
-import { waterStrength, waterTime } from './surfaces'
+import { batchStatic, waterStrength, waterTime } from './surfaces'
+import { usesSoftwareRendering } from './graphics'
+import type { GraphicsQuality } from './graphics'
 import { SurvivalState, distance, moveWithCollision, lineClear, findPath, waveCount, collides } from './rules'
 import type { Point, Mode } from './rules'
 
 export type GameView = {
   state: SurvivalState; location: Location; world: World; room: string; interaction: string;
-  door: number; sheltered: boolean; companions: boolean; pointerLocked: boolean; discoveries: number
+  door: number; sheltered: boolean; companions: ('sponge' | 'patrick')[]; pointerLocked: boolean; discoveries: number
 }
 type Enemy = {
   body: T.Group; hp: number; location: Location; attack: number;
@@ -74,6 +76,8 @@ export class Game {
   private discoveries = new Set<string>()
   private lastMusic: MusicMood = 'menu'
   private preparing: Promise<void> | null = null
+  private economy = false
+  private menuCovered = false
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -118,6 +122,7 @@ export class Game {
     this.waterMotes = new T.Points(geometry, new T.PointsMaterial({ color: '#d1f3dd', size: 0.11, transparent: true, opacity: 0.48, depthWrite: false }))
     this.scene.add(this.waterMotes)
     this.resize()
+    this.setGraphics('auto')
     window.addEventListener('resize', () => this.resize())
     window.addEventListener('keydown', e => {
       if (!this.playing || this.paused) return
@@ -188,6 +193,7 @@ export class Game {
   }
 
   private resize() {
+    this.renderer.setPixelRatio(this.economy ? Math.min(0.75, 800 / window.innerWidth) : Math.min(window.devicePixelRatio, 1.75))
     this.camera.aspect = window.innerWidth / window.innerHeight
     this.camera.updateProjectionMatrix()
     this.renderer.setSize(window.innerWidth, window.innerHeight)
@@ -238,6 +244,7 @@ export class Game {
     if (companions) {
       for (const kind of (['sponge', 'patrick'] as const).filter(kind => kind !== avatar)) {
         const body = createCharacter(kind)
+        batchStatic(body)
         label(body, kind === 'sponge' ? 'SPONGEBOB' : 'PATRICK', 0, 2.9, 0, '#e5e4ba', 2.4)
         this.companions.push({ kind, body, cooldown: 1, path: [], repath: 0 })
         this.scene.add(body)
@@ -387,6 +394,15 @@ export class Game {
     void this.soundtrack.start()
   }
 
+  setMenuCovered(covered: boolean) { this.menuCovered = covered }
+
+  setGraphics(quality: GraphicsQuality) {
+    this.economy = quality === 'economy' || (quality === 'auto' && usesSoftwareRendering(this.renderer))
+    this.renderer.shadowMap.enabled = !this.economy
+    this.doorwayViews.setEconomy(this.economy)
+    this.resize()
+  }
+
   repairDoor() {
     if (!this.playing || this.paused || !this.world.home || !['sponge0', 'squid0', 'patrick0'].includes(this.location)) return
     if (distance(this.camera.position, this.world.door) > 4) {
@@ -480,7 +496,7 @@ export class Game {
       interaction: this.closestInteraction()?.text ?? '',
       door: home ? this.doors[home] : 0,
       sheltered: !!home && this.doors[home] > 0 && !insideFish,
-      companions: this.companionsEnabled, pointerLocked: this.pointerLocked,
+      companions: this.companions.map(companion => companion.kind), pointerLocked: this.pointerLocked,
       discoveries: this.discoveries.size,
     })
   }
@@ -535,6 +551,7 @@ export class Game {
   private spawnEnemy() {
     const angle = Math.random() * Math.PI * 2
     const body = createCharacter('fish')
+    batchStatic(body)
     body.position.set(Math.sin(angle) * 48, 0, 15 + Math.cos(angle) * 39)
     this.scene.add(body)
     body.visible = this.location === 'street'
@@ -697,9 +714,10 @@ export class Game {
 
   private animate = (timestamp: number) => {
     requestAnimationFrame(this.animate)
-    const dt = Math.min((timestamp - this.lastTime) / 1000, 0.05)
+    const dt = Math.min((timestamp - this.lastTime) / 1000, 0.25)
     this.lastTime = timestamp
     this.time += dt
+    if (!this.playing && this.menuCovered) return
     if (!this.playing) {
       this.camera.position.set(48 + Math.sin(this.time * 0.06) * 2, 18, 49)
       this.camera.lookAt(3, 6.5, -8)

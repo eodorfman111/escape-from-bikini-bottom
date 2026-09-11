@@ -1,6 +1,7 @@
 import * as T from 'three'
 import { createCharacter } from './characters'
 import type { Avatar } from './characters'
+import { usesSoftwareRendering } from './graphics'
 
 export class AvatarPicker {
   private renderer: T.WebGLRenderer
@@ -11,7 +12,7 @@ export class AvatarPicker {
   private time = 0
   constructor(private canvas: HTMLCanvasElement) {
     this.renderer = new T.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'high-performance' })
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.7))
+    this.renderer.setPixelRatio(usesSoftwareRendering(this.renderer) ? 0.7 : Math.min(devicePixelRatio, 1.7))
     this.renderer.toneMapping = T.ACESFilmicToneMapping
     this.renderer.toneMappingExposure = 1.25
     this.camera.position.set(0, 2, 8)

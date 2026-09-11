@@ -15,9 +15,9 @@ export const houseNotes = [
   {
     name: 'The pineapple', address: '124 CONCH STREET', color: '#f5ad45',
     floors: [
-      ['GROUND FLOOR', 'Living room → kitchen · green stairs'],
-      ['SECOND FLOOR', 'Library → bathroom · workout nook'],
-      ['THIRD FLOOR', 'Bedroom → rooftop hatch'],
+      ['GROUND FLOOR', 'Living room → kitchen · orange stair opening'],
+      ['LIBRARY', 'Curved stacks · hanging chair · organ · slide'],
+      ['BEDROOM FLOOR', 'Life-ring bed · bathroom · rooftop hatch'],
       ['ROOFTOP', 'Leaf crown · lookout'],
     ],
     evidence: 'Episode stills show cyan bamboo walls, a small Gary portrait, striped lure, green inflatable couch, red lifebuoy chair and diving-helmet TV. The kitchen repeatedly uses a broad arch, porthole refrigerator, crooked-pipe stove, bucket sink and barrel cupboards. The bedroom uses red woven and blue riveted walls, life-ring bed, flower blanket, foghorn, ladder and hatch. The library references show curved stacks, green floor, woven rug, hanging chair, shell-like arches, lower door, upper slide, three bent organ pipes and a conch fireplace.',
@@ -27,7 +27,7 @@ export const houseNotes = [
     name: 'The moai', address: '122 CONCH STREET', color: '#7ecbd1',
     floors: [
       ['GROUND FLOOR', 'Living room → kitchen + dining room'],
-      ['SECOND FLOOR', 'Canopy bedroom → art studio + bathroom'],
+      ['SECOND FLOOR', 'Dedicated library · portrait studio · bedroom · bathroom'],
     ],
     evidence: 'Squid Wood stills establish a dedicated library with gold bamboo shelves, dark olive backing, muted book spines, blue ceiling, mauve parquet, arched door, blue bamboo chair, oval rug and shell lamps. Squidward the Unfriendly Ghost and related stills show a red/salmon art room with gray parquet, stool, easel, palette, nautical elevator and many distinct self-portraits, including top-hat, mosaic, geometric and blue-relief motifs.',
     decision: 'The upstairs hall now opens into a separate library, portrait-filled studio, bedroom and bathroom. This arrangement combines rooms the series shows independently; their exact floor and adjacency are not established. The varied self-portraits are original redrawings of recurring motifs rather than repeated rectangles. Bold and Brash appears as a clearly labeled bonus exhibit because its permanent placement in the ordinary house is not verified.',

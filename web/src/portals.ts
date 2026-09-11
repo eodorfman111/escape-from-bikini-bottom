@@ -37,18 +37,27 @@ export class DoorwayViews {
   private hemisphere = new T.HemisphereLight('#b9ece4', '#9b8656', 2.4)
   private sun = new T.DirectionalLight('#ffe1a3', 3.6)
   private targets = new Map<Portal, T.WebGLRenderTarget>()
+  private resolution = 512
+  private frustum = new T.Frustum()
   constructor() {
     this.sun.position.set(-25, 45, 30)
     this.scene.add(this.hemisphere, this.sun)
     this.scene.background = new T.Color('#65b3bc')
   }
 
+  setEconomy(economy: boolean) {
+    this.resolution = economy ? 192 : 512
+    for (const target of this.targets.values()) target.setSize(this.resolution, this.resolution * 1.25)
+  }
+
   render(renderer: T.WebGLRenderer, eye: T.PerspectiveCamera, world: World, getWorld: (location: Location) => World, actors: { body: T.Group; location: Location }[]) {
     const previousStrength = waterStrength.value
     const previousTarget = renderer.getRenderTarget()
+    eye.updateMatrixWorld(true)
+    this.frustum.setFromProjectionMatrix(new T.Matrix4().multiplyMatrices(eye.projectionMatrix, eye.matrixWorldInverse))
     const candidates = world.portals.filter(p => {
       const d = thresholdDistance(eye.position, p)
-      return d > 0.003 && d < 26 && eye.position.distanceTo(p.screen.position) < 30
+      return d > 0.003 && d < 26 && eye.position.distanceTo(p.screen.position) < 30 && this.frustum.intersectsSphere(new T.Sphere(p.screen.position, 2.6))
     }).sort((a, b) => eye.position.distanceToSquared(a.screen.position) - eye.position.distanceToSquared(b.screen.position)).slice(0, 2)
     for (const portal of candidates) {
       const destination = getWorld(portal.target)
@@ -65,7 +74,7 @@ export class DoorwayViews {
       this.camera.updateMatrixWorld(true)
       let target = this.targets.get(portal)
       if (!target) {
-        target = new T.WebGLRenderTarget(512, 640, { type: T.HalfFloatType })
+        target = new T.WebGLRenderTarget(this.resolution, this.resolution * 1.25, { type: T.HalfFloatType })
         this.targets.set(portal, target)
         portal.screen.material.map = target.texture
         portal.screen.material.color.set('#ffffff')

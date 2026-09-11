@@ -106,9 +106,9 @@ function pineappleLibrary(w: World) {
   for (let i = 0; i < 12; i++) M.box(w.root, -7.65 + i * 0.18, 1.31, 7.3, 0.15, 0.1, 0.5, i % 3 ? '#e7dbc0' : '#4b5852')
   obstacle(w, -6.65, 7.1, 2.6, 1.4)
   secret(w, 'organ', { x: -6.65, z: 8.5 }, 'Try the library organ', 'Something Smells — three bent organ pipes, one very enthusiastic musician.')
-  passage(w, 'slide', { x: 6.2, z: -3.5 }, { x: 0, z: 1 }, 'sponge2', 'slide', 'Walk through the slide passage to the bedroom', '#8eabb5')
-  D.tube(w.root, [[6.2, 5.6, -8], [6.2, 4.1, -6], [6.2, 1.1, -4.5]], 0.72, '#97c2ce')
-  M.label(w.root, 'BEDROOM SLIDE', 6.2, 4.3, -3.35, '#dce8bd', 3)
+  passage(w, 'slide', { x: 6.2, z: -2.8 }, { x: 0, z: 1 }, 'sponge2', 'slide', 'Walk through the slide passage to the bedroom', '#8eabb5')
+  D.tube(w.root, [[6.2, 5.6, -8], [6.2, 4.1, -6], [6.2, 1.1, -3.8]], 0.72, '#97c2ce')
+  M.label(w.root, 'BEDROOM SLIDE', 6.2, 4.3, -2.65, '#dce8bd', 3)
   w.zones.push({ x: 0, z: 0, w: 22, d: 22, name: 'Library · curved stacks & hanging chair' })
 }
 
