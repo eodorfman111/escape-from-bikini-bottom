@@ -119,9 +119,15 @@ with `--no-sandbox` or disabled web security.
 
 Shell-based type/lint/unit/build checks and Linux x64 and Windows x64 packaging
 have passed. The Windows archive includes the executable, runtime resources,
-game bundle and player instructions. No Electron GUI was launched.
-macOS packaging, native OS execution, mouse/keyboard link behavior in Electron,
-pointer lock, fullscreen, WebGL/audio playback, and signing remain release
+game bundle, player instructions and diagnostic launcher.
+
+Native Linux startup, avatar preparation, exploration, movement, pointer capture
+and pause/resume were tested with sandbox and web security enabled. Default
+launch on the GPU-less test host showed the visible WebGL fallback; gameplay
+required explicit SwiftShader flags for that test invocation only. These results
+do not establish normal hardware performance or Windows compatibility.
+Windows/macOS execution, the Windows CMD launcher, macOS packaging, native
+external-link behavior, fullscreen, audible music and signing remain release
 validation tasks.
 
 ## Dependency release evidence
