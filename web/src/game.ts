@@ -6,7 +6,7 @@ import { createCharacter, createFirstPersonRig } from './characters'
 import type { Avatar } from './characters'
 import { Soundtrack } from './music'
 import type { MusicMood } from './music'
-import { DoorwayViews, crossesThreshold, portalRotation, throughPortal } from './portals'
+import { DoorwayViews, reachableCrossing, portalRotation, throughPortal } from './portals'
 import { batchStatic, waterStrength, waterTime } from './surfaces'
 import { usesSoftwareRendering } from './graphics'
 import type { GraphicsQuality } from './graphics'
@@ -525,18 +525,26 @@ export class Game {
     const speed = this.keys.has('ShiftLeft') || this.keys.has('ShiftRight') ? 7.8 : 4.9
     const dx = (strafe * Math.cos(this.yaw) - forward * Math.sin(this.yaw)) * speed * dt
     const dz = (-strafe * Math.sin(this.yaw) - forward * Math.cos(this.yaw)) * speed * dt
-    const next = moveWithCollision(this.camera.position, dx, dz, this.world.walls)
-    const portal = this.world.portals.find(candidate => crossesThreshold(before, next, candidate))
-    if (portal) {
+    const proposed = { x: before.x + dx, z: before.z + dz }
+    for (const portal of this.world.portals) {
+      const crossing = reachableCrossing(before, proposed, portal, this.world.walls)
+      if (!crossing) continue
       const target = this.getWorld(portal.target)
       const exit = target.portals.find(candidate => candidate.id === portal.exitId)
       if (exit) {
-        const arrival = throughPortal(next, portal, exit)
+        const entrance = throughPortal(crossing, portal, exit)
+        entrance.x += exit.normal.x * 0.01
+        entrance.z += exit.normal.z * 0.01
+        const projected = throughPortal(proposed, portal, exit)
+        projected.x += exit.normal.x * 0.01
+        projected.z += exit.normal.z * 0.01
+        const arrival = moveWithCollision(entrance, projected.x - entrance.x, projected.z - entrance.z, target.walls)
         this.changeLocation(portal.target, arrival, this.yaw + portalRotation(portal, exit))
         this.sound(260, 0.12, 'sine', 0.025)
         return
       }
     }
+    const next = moveWithCollision(this.camera.position, dx, dz, this.world.walls)
     this.camera.position.x = next.x
     this.camera.position.z = next.z
     if (length > 0.05) this.bob += dt * speed * 1.8

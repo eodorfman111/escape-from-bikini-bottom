@@ -1,6 +1,8 @@
 import * as T from 'three'
 import { frameCorners } from 'three/addons/utils/CameraUtils.js'
 import type { Point } from './rules'
+import { distance, moveWithCollision } from './rules'
+import type { Rect } from './rules'
 import type { Location, Portal, World } from './world'
 import { waterStrength } from './surfaces'
 
@@ -21,6 +23,15 @@ export function crossesThreshold(before: Point, after: Point, portal: Threshold,
 
 export function portalRotation(source: Threshold, destination: Threshold) {
   return Math.atan2(destination.normal.x, destination.normal.z) - Math.atan2(source.normal.x, source.normal.z) + Math.PI
+}
+
+export function reachableCrossing(before: Point, after: Point, portal: Threshold, walls: Rect[]): Point | null {
+  if (!crossesThreshold(before, after, portal)) return null
+  const a = thresholdDistance(before, portal), b = thresholdDistance(after, portal)
+  const t = a / (a - b)
+  const crossing = { x: before.x + (after.x - before.x) * t, z: before.z + (after.z - before.z) * t }
+  const approach = moveWithCollision(before, crossing.x - before.x, crossing.z - before.z, walls)
+  return distance(approach, crossing) < 0.0001 ? crossing : null
 }
 
 export function throughPortal(position: Point, source: Threshold, destination: Threshold): Point {
