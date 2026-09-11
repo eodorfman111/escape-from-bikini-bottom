@@ -43,6 +43,9 @@ Packaging replaces the previous generated folder for that target.
 
 - **Windows:** distribute the entire output folder, usually as a ZIP. After
   extraction, run `conch-street.exe`. Do not distribute the executable alone.
+  The package includes `START-HERE.txt` with extraction and gameplay instructions.
+  Windows version metadata uses the descriptive publisher label
+  `Conch Street fan project`; it is not a code-signing identity.
 - **macOS:** distribute `ConchStreet.app` from the output folder. Package/sign on
   macOS, and use a macOS-aware archive tool to preserve the app bundle:
   `ditto -c -k --sequesterRsrc --keepParent release/ConchStreet-darwin-arm64/ConchStreet.app ConchStreet-mac-arm64.zip`.
@@ -86,12 +89,11 @@ use `new URL(..., import.meta.url)`, or use `import.meta.env.BASE_URL` for files
 in `public/`. Avoid runtime root-relative paths such as `/music/theme.ogg`,
 which resolve to the filesystem root under `file:`.
 
-The original optional Google Fonts CSS import is blocked in the desktop app;
-existing system-font fallbacks work offline. For identical typography on all
-platforms, add appropriately licensed local fonts and update the game CSS.
-Future art/music must also be bundled locally. Desktop mode writes to the same
-`dist/` as the website; run `npm run build` again before publishing a normal
-web build if it should retain its optional remote fonts.
+The game uses system fonts and locally generated art/music. For identical
+typography on all platforms, add appropriately licensed local fonts and update
+the game CSS. Future art/music must also be bundled locally. Desktop mode writes
+to the same `dist/` as the website; run `npm run build` again before publishing
+a normal web build.
 
 ## Release gaps
 
@@ -106,10 +108,11 @@ libraries. Chromium sandbox support must be available through the distribution's
 user-namespace/setuid-sandbox configuration. Do not work around launch failures
 with `--no-sandbox` or disabled web security.
 
-The initial implementation was checked with shell-based type/lint/unit/build
-checks and inspection of a Linux x64 package. No Electron GUI was launched.
-Windows/macOS packaging, OS execution, mouse/keyboard link behavior in Electron,
-pointer lock, fullscreen, WebGL/audio playback, and signing remain manual release
+Shell-based type/lint/unit/build checks and Linux x64 and Windows x64 packaging
+have passed. The Windows archive includes the executable, runtime resources,
+game bundle and player instructions. No Electron GUI was launched.
+macOS packaging, native OS execution, mouse/keyboard link behavior in Electron,
+pointer lock, fullscreen, WebGL/audio playback, and signing remain release
 validation tasks.
 
 ## Dependency release evidence

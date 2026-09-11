@@ -50,12 +50,16 @@ try {
     overwrite: true,
     tmpdir: buildDirectory,
     win32metadata: {
+      CompanyName: 'Conch Street fan project',
       ProductName: 'Conch Street',
       FileDescription: 'Conch Street — Trouble in Bikini Bottom',
       InternalName: 'conch-street',
     },
   })
-  for (const output of outputs) log(`Standalone application: ${output}`)
+  for (const output of outputs) {
+    if (platform === 'win32') await cp(join(root, 'desktop', 'WINDOWS-README.txt'), join(output, 'START-HERE.txt'))
+    log(`Standalone application: ${output}`)
+  }
 } finally {
   await rm(staging, { recursive: true, force: true })
 }
