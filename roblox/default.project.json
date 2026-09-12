@@ -4,7 +4,8 @@
     "$className": "DataModel",
     "Workspace": {
       "$className": "Workspace",
-      "$properties": { "Gravity": 150, "FallenPartsDestroyHeight": -100, "StreamingEnabled": false }
+      "$properties": { "Gravity": 150, "FallenPartsDestroyHeight": -100, "StreamingEnabled": false },
+      "ConchWorld": { "$path": "build/World.rbxm" }
     },
     "Lighting": {
       "$className": "Lighting",
@@ -16,7 +17,16 @@
         "GlobalShadows": true,
         "EnvironmentDiffuseScale": 0.7,
         "EnvironmentSpecularScale": 0.8
-      }
+      },
+      "OceanAtmosphere": {
+        "$className": "Atmosphere",
+        "$properties": { "Density": 0.22, "Offset": 0.1, "Color": [0.5, 0.83, 0.86], "Decay": [0.2, 0.53, 0.65], "Haze": 1.2 }
+      },
+      "OceanGrade": {
+        "$className": "ColorCorrectionEffect",
+        "$properties": { "Saturation": 0.12, "Contrast": 0.06, "TintColor": [0.93, 1, 1] }
+      },
+      "PearlBloom": { "$className": "BloomEffect", "$properties": { "Intensity": 0.2, "Size": 20, "Threshold": 1.6 } }
     },
     "ReplicatedStorage": {
       "$className": "ReplicatedStorage",
