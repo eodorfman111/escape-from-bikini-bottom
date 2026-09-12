@@ -37,4 +37,5 @@ run(
 run("lune", { "run", "tests/rules.luau" })
 run("lune", { "run", "tests/world.luau" })
 run("lune", { "run", "tests/models.luau" })
+run("lune", { "run", "tests/exteriors.luau" })
 print("All offline checks passed. Roblox Studio playtesting is still required.")

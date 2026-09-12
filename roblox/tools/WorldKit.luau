@@ -1,4 +1,7 @@
 --!strict
+-- selene: allow(incorrect_standard_library_use)
+local Roblox = require("./Roblox")
+local Vector3, CFrame = Roblox.Vector3, Roblox.CFrame
 export type Triple = { number }
 export type Part = {
 	name: string,
@@ -15,6 +18,8 @@ export type Part = {
 	label: string?,
 	secret: string?,
 	supply: boolean?,
+	group: string?,
+	castShadow: boolean?,
 }
 local WorldKit = {}
 WorldKit.__index = WorldKit
@@ -53,6 +58,67 @@ end
 
 function WorldKit.ball(self: Kit, name: string, p: Triple, size: Triple, color: Triple): Part
 	return self:part(name, p, size, color, "Ball")
+end
+
+function WorldKit.triangle(
+	self: Kit,
+	name: string,
+	a: Triple,
+	b: Triple,
+	c: Triple,
+	color: Triple,
+	material: string?
+)
+	local av, bv, cv =
+		Vector3.new(a[1], a[2], a[3]), Vector3.new(b[1], b[2], b[3]), Vector3.new(c[1], c[2], c[3])
+	local ab, ac, bc = bv - av, cv - av, cv - bv
+	if ab.Magnitude > ac.Magnitude and ab.Magnitude > bc.Magnitude then
+		cv, av = av, cv
+	elseif ac.Magnitude > bc.Magnitude then
+		bv, av = av, bv
+	end
+	ab, ac, bc = bv - av, cv - av, cv - bv
+	if ac:Cross(ab).Magnitude < 0.00001 then
+		return
+	end
+	local right = ac:Cross(ab).Unit
+	local back = bc.Unit
+	local up = back:Cross(right).Unit
+	local height = math.abs(ab:Dot(up))
+	for _, wedge in
+		{
+			{ center = (av + bv) / 2, right = right, back = back, length = math.abs(ab:Dot(back)) },
+			{ center = (av + cv) / 2, right = -right, back = -back, length = math.abs(ac:Dot(back)) },
+		}
+	do
+		if wedge.length < 0.00001 then
+			continue
+		end
+		local x, y, z = CFrame.fromMatrix(wedge.center, wedge.right, up, wedge.back):ToEulerAnglesXYZ()
+		self:part(
+			name,
+			{ wedge.center.X, wedge.center.Y, wedge.center.Z },
+			{ 0.08, height, wedge.length },
+			color,
+			"Wedge",
+			material,
+			{ math.deg(x), math.deg(y), math.deg(z) }
+		)
+	end
+end
+
+function WorldKit.quad(
+	self: Kit,
+	name: string,
+	a: Triple,
+	b: Triple,
+	c: Triple,
+	d: Triple,
+	color: Triple,
+	material: string?
+)
+	self:triangle(name, a, b, c, color, material)
+	self:triangle(name, a, c, d, color, material)
 end
 
 function WorldKit.cylinder(

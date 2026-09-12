@@ -540,7 +540,8 @@ local function spawnWave(fighters: { Player })
 			waypoint = 1,
 		}
 		enemy.model.Parent = actors
-		enemy.model:PivotTo(CFrame.new(-175 + (i * 41 % 400), 3, 123 + i % 4 * 5))
+		local spawn = Config.FishSpawns[(i - 1) % #Config.FishSpawns + 1]
+		enemy.model:PivotTo(CFrame.new(spawn[1] + i % 3 * 3, spawn[2], spawn[3] + i % 4 * 3))
 		table.insert(fish, enemy)
 	end
 	everyone("Wave " .. wave .. " • " .. count .. " restless fish")

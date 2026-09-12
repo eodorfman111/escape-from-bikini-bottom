@@ -686,7 +686,7 @@ local function laboratory(kit: Kit)
 end
 
 return function(): { WorldKit.Part }
-	local outside = WorldKit.new("street", { 175, 0, 0 })
+	local outside = WorldKit.new("street", { 0, 0, 0 })
 	local inside = WorldKit.new("chum", Config.Zones.chum.origin)
 	exterior(outside)
 	restaurantShell(inside)

@@ -65,110 +65,59 @@ local function flower(kit: Kit, p: Triple, radius: number, color: Triple)
 		false
 end
 
-local function lifted(p: Triple): Triple
-	local angle = math.rad(62)
-	return {
-		p[1],
-		1.5 + p[2] * math.cos(angle) + (p[3] + 18) * math.sin(angle),
-		-18 - p[2] * math.sin(angle) + (p[3] + 18) * math.cos(angle),
-	}
-end
-
 local function exterior(): Kit
-	local kit = WorldKit.new("street", { -110, 0, 0 })
-	kit:cylinder("Level excavated sand landing", { 0, -0.4, 0 }, { 0.8, 44, 44 }, sand).material = "Sand"
-	for i = 0, 27 do
-		local a = math.rad(25 + i * 310 / 28)
-		local b = math.rad(25 + (i + 1) * 310 / 28)
-		rod(
-			kit,
-			"Excavated pit lip",
-			{ math.sin(a) * 22, 0.5, math.cos(a) * 19 },
-			{ math.sin(b) * 22, 0.5, math.cos(b) * 19 },
-			0.8,
-			paleSand
-		).material =
-			"Sand"
-		local rim = kit:ball(
+	local kit = WorldKit.new("street", { 0, 0, 0 })
+	local function surface(angle: number, latitude: number): Triple
+		return {
+			22 * math.sin(angle) * math.cos(latitude),
+			22 * math.sin(latitude),
+			19 * math.cos(angle) * math.cos(latitude),
+		}
+	end
+	for segment = 0, 23 do
+		local a, b = segment * math.pi / 12, (segment + 1) * math.pi / 12
+		for row = 0, 7 do
+			local low, high = row * math.pi / 16, (row + 1) * math.pi / 16
+			local variation = (segment * 7 + row * 11) % 13 - 6
+			local color = { 112 + variation, 73 + variation, 77 + variation }
+			kit:quad(
+				"Continuous rock dome",
+				surface(a, low),
+				surface(b, low),
+				surface(b, high),
+				surface(a, high),
+				color,
+				"Slate"
+			)
+		end
+		kit:triangle("Rock lid underside", { 0, 0, 0 }, surface(b, 0), surface(a, 0), { 80, 57, 57 }, "Slate")
+	end
+	rod(kit, "Weather vane mast", { 0, 21.5, 0 }, { 0, 29.5, 0 }, 0.35, brass)
+	rod(kit, "Weather vane arrow shaft", { -6.5, 29, 0 }, { 6.5, 29, 0 }, 0.3, brass)
+	rod(kit, "Weather vane arrow upper", { -6.5, 29, 0 }, { -3.5, 31, 0 }, 0.3, brass)
+	rod(kit, "Weather vane arrow lower", { -6.5, 29, 0 }, { -3.5, 27, 0 }, 0.3, brass)
+	for _, x in { 3, 5 } do
+		rod(kit, "Weather vane tail", { x - 1, 30.5, 0 }, { x + 1, 27.5, 0 }, 0.3, brass)
+	end
+	for _, part in kit.parts do
+		part.group, part.collide = "PatrickLid", false
+	end
+	kit:ball("Shaded sand pit", { 0, 0.02, 0 }, { 41, 0.04, 35 }, { 100, 82, 63 }).collide = false
+	for i = 2, 22 do
+		local a = i * math.pi / 12
+		kit:ball(
 			"Packed sand pit edge",
-			{ math.sin(a) * 21, 1, math.cos(a) * 18 },
-			{ 3, 2, 3 },
-			sandShadow
-		)
-		rim.material = "Sand"
+			{ math.sin(a) * 22, 0.25, math.cos(a) * 19 },
+			{ 4, 0.5, 3 },
+			paleSand
+		).collide =
+			false
 	end
-	for i = -2, 2 do
-		local breadth = math.sqrt(1 - (i / 2.8) ^ 2)
-		local slab = kit:ball(
-			"Lifted rounded rock lobe",
-			lifted({ i * 8, 4.5, 0 }),
-			{ 13, 13 * breadth, 38 * breadth },
-			{ rock[1] + i * 3, rock[2] + i * 2, rock[3] + i * 2 }
-		)
-		slab.rotation = { -62, 0, 0 }
-		slab.material = "Slate"
+	for _, x in { -7, 7 } do
+		kit:cylinder("Rock hinge barrel", { x, 0.5, -19 }, { 6, 1.2, 1.2 }, brass, { 0, 0, 0 })
 	end
-	for i = 0, 39 do
-		local a, b = i * math.pi / 20, (i + 1) * math.pi / 20
-		rod(
-			kit,
-			"Brass lid rim",
-			lifted({ math.sin(a) * 21, 0, math.cos(a) * 18 }),
-			lifted({ math.sin(b) * 21, 0, math.cos(b) * 18 }),
-			0.55,
-			brass
-		).material =
-			"Metal"
-		if i % 2 == 0 then
-			local rivet = kit:ball(
-				"Lid rim rivet",
-				lifted({ math.sin(a) * 20.5, -0.4, math.cos(a) * 17.5 }),
-				{ 0.65, 0.65, 0.65 },
-				paleSand
-			)
-			rivet.material = "Metal"
-		end
-	end
-	for i = 1, 18 do
-		local x = (i * 13 % 31) - 15
-		local z = (i * 7 % 23) - 11
-		local patch = kit:ball(
-			"Weathered rose stone patch",
-			lifted({ x, 10.1 - math.abs(x) * 0.08, z }),
-			{ 2 + i % 3, 0.35, 1.5 + i % 2 },
-			{ 166 + i % 3 * 5, 100 + i % 4 * 4, 83 + i % 2 * 4 }
-		)
-		patch.rotation = { -62, 0, 0 }
-		patch.collide = false
-	end
-	kit:cylinder("Continuous brass hinge barrel", { 0, 1.6, -18 }, { 23, 2.4, 2.4 }, brass, { 0, 0, 0 }).material =
-		"Metal"
-	for _, x in { -9, -3, 3, 9 } do
-		kit:cylinder("Hinge knuckle", { x, 1.6, -18 }, { 2.2, 2.8, 2.8 }, sandShadow, { 0, 0, 0 }).material =
-			"Metal"
-	end
-	for _, sign in { -1, 1 } do
-		rod(kit, "Lid support stay", { sign * 17, 1.4, -6 }, lifted({ sign * 17, 0, 4 }), 0.45, brass).material =
-			"Metal"
-		kit:ball("Rock entrance cheek", { sign * 13, 4, 10 }, { 9, 8, 9 }, rock).material = "Slate"
-		kit:light({ sign * 10, 5, 14 }, { 255, 214, 152 }, 18)
-		for i = 1, 4 do
-			kit:ball(
-				"Scattered beach pebble",
-				{ sign * (23 + i % 2 * 3), 0.4, -10 + i * 7 },
-				{ 1.6 + i * 0.2, 0.8, 1.4 },
-				{ 169 + i * 7, 124 + i * 6, 94 + i * 4 }
-			)
-		end
-	end
-	kit:cylinder("Driftwood mailbox post", { -27, 3, 18 }, { 6, 0.8, 0.8 }, sandShadow).material = "Wood"
-	kit:part("Mailbox tray", { -27, 6.1, 18 }, { 4, 0.4, 5 }, dark)
-	kit:ball("Rounded coral mailbox", { -27, 7, 18 }, { 4.3, 3, 5 }, pink)
-	kit:part("Mailbox dark opening", { -27, 6.8, 20.45 }, { 2.8, 1.5, 0.12 }, dark)
-	kit:part("Mailbox flag stalk", { -24.7, 8, 18 }, { 0.3, 3, 0.4 }, brass)
-	kit:part("Mailbox flag", { -24, 9.2, 18 }, { 1.6, 0.9, 0.4 }, pink)
-	flower(kit, { -27, 7, 20.6 }, 0.65, purple)
-	kit:label("120 CONCH STREET", { -27, 10.7, 18 }, paleSand)
+	kit:part("Rock entrance sand landing", { 0, 0.04, 16 }, { 14, 0.08, 10 }, sand, nil, "Sand").collide =
+		false
 	return kit
 end
 

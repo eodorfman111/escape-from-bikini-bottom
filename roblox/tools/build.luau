@@ -43,6 +43,7 @@ for id in Config.Zones do
 	zones[id] = folder
 end
 local parts = World()
+local groups: { [string]: Model } = {}
 for _, spec in parts do
 	local part: BasePart = if spec.shape == "Wedge" then Instance.new("WedgePart") else Instance.new("Part")
 	part.Name = spec.name
@@ -52,11 +53,20 @@ for _, spec in parts do
 	part.Color = color(spec.color)
 	part.Material = assert(materials[spec.material], "Unknown material " .. spec.material)
 	if part:IsA("Part") then
-		part.Shape = assert(shapes[spec.shape], "Unknown shape " .. spec.shape)
+		if spec.shape == "Ball" then
+			part.Shape = Enum.PartType.Block
+			local mesh = Instance.new("SpecialMesh")
+			mesh.Name, mesh.MeshType = "Ellipsoid", Enum.MeshType.Sphere
+			mesh.Scale = Vector3.one
+			mesh.Parent = part
+		else
+			part.Shape = assert(shapes[spec.shape], "Unknown shape " .. spec.shape)
+		end
 	end
 	part.Anchored = true
 	part.CanCollide = spec.collide
 	part.CanTouch = false
+	part.CastShadow = spec.castShadow ~= false and spec.transparency < 1
 	part.CanQuery = spec.collide
 	part.Transparency = spec.transparency
 	part.TopSurface = Enum.SurfaceType.Smooth
@@ -99,17 +109,32 @@ for _, spec in parts do
 		light.Shadows = false
 		light.Parent = part
 	end
-	part.Parent = zones[spec.zone]
+	local group = spec.group
+	if group then
+		local key = spec.zone .. "/" .. group
+		if not groups[key] then
+			local model = Instance.new("Model")
+			model.Name, model.Parent = group, zones[spec.zone]
+			groups[key] = model
+		end
+		part.Parent = groups[key]
+	else
+		part.Parent = zones[spec.zone]
+	end
 end
 for _, portal in Config.Portals do
 	local part = Instance.new("Part")
 	part.Name = portal.id
-	part.Size = Vector3.new(portal.width, 16, 0.2)
+	local height = if portal.zone == "street" then portal.width * 1.6 else 16
+	part.Size = Vector3.new(portal.width, height, 0.2)
 	local position, normal = vector(portal.position), vector(portal.normal)
-	part.CFrame = CFrame.lookAt(position + Vector3.new(0, 8, 0), position + Vector3.new(0, 8, 0) - normal)
+	part.CFrame = CFrame.lookAt(
+		position + Vector3.new(0, height / 2, 0),
+		position + Vector3.new(0, height / 2, 0) - normal
+	)
 	part.Color = Color3.fromRGB(100, 230, 231)
 	part.Material = Enum.Material.Neon
-	part.Transparency = 0.92
+	part.Transparency = 1
 	part.Anchored, part.CanCollide, part.CanQuery, part.CanTouch = true, false, false, false
 	part:SetAttribute("Portal", portal.id)
 	part:SetAttribute("Zone", portal.zone)

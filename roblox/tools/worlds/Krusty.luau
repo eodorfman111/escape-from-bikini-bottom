@@ -166,7 +166,7 @@ local function anchor(kit: Kit, x: number, y: number, z: number, scale: number, 
 end
 
 local function exterior(): Kit
-	local kit = WorldKit.new("street", { 90, 0, 0 })
+	local kit = WorldKit.new("street", { 0, 0, 0 })
 	kit:part("Flush sand apron", { 0, -0.35, 4 }, { 64, 0.7, 54 }, { 216, 197, 145 }, nil, "Sand")
 	kit:part("Restaurant deck", { 0, -0.2, -11 }, { 57, 0.4, 44 }, C.honey, nil, "WoodPlanks")
 	kit:part("Rear wooden wall", { 0, 8.5, -32 }, { 56, 17, 1.2 }, C.wood, nil, "WoodPlanks")

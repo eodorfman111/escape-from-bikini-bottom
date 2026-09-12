@@ -8,7 +8,6 @@ type Kit = WorldKit.Kit
 type Triple = WorldKit.Triple
 type Portrait = "tophat" | "mosaic" | "geometric" | "relief" | "bold"
 
-local stone = { 102, 143, 162 }
 local stoneLight = { 135, 179, 193 }
 local stoneDark = { 69, 105, 129 }
 local brass = { 206, 173, 92 }
@@ -320,79 +319,162 @@ local function portrait(
 end
 
 local function exterior(): Kit
-	local kit = WorldKit.new("street", { -55, 0, 0 })
-	kit:part("Moai rear chamber", { 0, 21, -11 }, { 31, 42, 7 }, stone, nil, "Slate")
+	local kit = WorldKit.new("street", { 0, 0, 0 })
+	local shell, face, shade = { 57, 92, 130 }, { 82, 122, 162 }, { 37, 63, 96 }
+	local profiles = {
+		{ 0, 22, 16 },
+		{ 20, 20, 15 },
+		{ 48, 16.5, 13 },
+		{ 65, 15, 12 },
+		{ 69, 12.5, 10 },
+	}
+	local function outline(profile: Triple): { Triple }
+		local y, w, d = profile[1], profile[2], profile[3]
+		local bevel = 4
+		return {
+			{ -w + bevel, y, d },
+			{ w - bevel, y, d },
+			{ w, y, d - bevel },
+			{ w, y, -d + bevel },
+			{ w - bevel, y, -d },
+			{ -w + bevel, y, -d },
+			{ -w, y, -d + bevel },
+			{ -w, y, d - bevel },
+		}
+	end
+	for level = 1, #profiles - 1 do
+		local lower, upper = outline(profiles[level]), outline(profiles[level + 1])
+		for edge = 1, 8 do
+			local nextEdge = edge % 8 + 1
+			if level == 1 and edge == 1 then
+				kit:quad(
+					"Moai left entrance pier",
+					lower[1],
+					{ -7.5, 0, 16 },
+					{ -7.5, 20, 15 },
+					upper[1],
+					shell,
+					"Slate"
+				)
+				kit:quad(
+					"Moai right entrance pier",
+					{ 7.5, 0, 16 },
+					lower[2],
+					upper[2],
+					{ 7.5, 20, 15 },
+					shell,
+					"Slate"
+				)
+			else
+				kit:quad(
+					"Tapered blue Moai shell",
+					lower[edge],
+					lower[nextEdge],
+					upper[nextEdge],
+					upper[edge],
+					shell,
+					"Slate"
+				)
+			end
+		end
+	end
+	local top = outline(profiles[#profiles])
+	for edge = 1, 8 do
+		kit:triangle("Flattened Moai crown", { 0, 69, 0 }, top[edge], top[edge % 8 + 1], shell, "Slate")
+	end
+	kit:part("Single heavy Moai brow", { 0, 47, 14.8 }, { 34, 5.5, 7 }, shell, nil, "Slate")
+	kit:part("Brow lower shadow", { 0, 44.1, 15 }, { 33, 0.3, 6 }, shade, nil, "Slate")
+	kit:quad(
+		"Tapered nose face",
+		{ -5, 22, 24 },
+		{ 5, 22, 24 },
+		{ 2.2, 44, 19 },
+		{ -2.2, 44, 19 },
+		face,
+		"Slate"
+	)
+	kit:quad(
+		"Nose left flank",
+		{ -5, 22, 14 },
+		{ -5, 22, 24 },
+		{ -2.2, 44, 19 },
+		{ -2.2, 44, 13 },
+		shell,
+		"Slate"
+	)
+	kit:quad(
+		"Nose right flank",
+		{ 5, 22, 24 },
+		{ 5, 22, 14 },
+		{ 2.2, 44, 13 },
+		{ 2.2, 44, 19 },
+		shade,
+		"Slate"
+	)
+	kit:quad("Nose lower face", { -5, 22, 14 }, { 5, 22, 14 }, { 5, 22, 24 }, { -5, 22, 24 }, shade, "Slate")
+	kit:part("Recess above arched doorway", { 0, 19.7, 14.7 }, { 15, 2, 1 }, shell, nil, "Slate")
 	for _, side in { -1, 1 } do
-		kit:ball("Rounded moai side", { side * 14, 22, -2 }, { 12, 44, 29 }, stone).material = "Slate"
-		kit:part("Moai cheek pier", { side * 12.5, 15, 10 }, { 10.5, 30, 10 }, stone, nil, "Slate")
-		kit:ball("Moai ear", { side * 21, 25, -2 }, { 6, 16, 11 }, stoneDark)
-		kit:ball("Moai ear inset", { side * 22.3, 25, 1 }, { 2.5, 10, 6 }, stoneLight)
-		kit:ball("Heavy stone eyebrow", { side * 9, 38, 13 }, { 18, 5, 6 }, stoneDark)
-		kit:cylinder("Eye porthole rim", { side * 10, 32.5, 15 }, { 1.6, 9.2, 9.2 }, stoneLight, { 0, 90, 0 })
+		kit:part("Rectangular Moai ear", { side * 22, 30, 3 }, { 7, 23, 11 }, shade, nil, "Slate")
+		kit:part("Moai ear face", { side * 22, 30, 8.7 }, { 5.5, 21, 0.8 }, shell, nil, "Slate")
 		kit:cylinder(
-			"Deep blue porthole",
-			{ side * 10, 32.5, 16 },
-			{ 0.3, 7.6, 7.6 },
-			{ 30, 71, 101 },
+			"Eye porthole rim",
+			{ side * 9, 39, 15 },
+			{ 1.6, 10.3, 10.3 },
+			{ 94, 126, 190 },
 			{ 0, 90, 0 }
 		)
-		kit:part("Porthole mullion", { side * 10, 32.5, 16.3 }, { 0.45, 7.4, 0.3 }, brass)
-		kit:part("Porthole crossbar", { side * 10, 32.5, 16.3 }, { 7.4, 0.45, 0.3 }, brass)
+		kit:cylinder("Porthole inner recess", { side * 9, 39, 15.9 }, { 0.3, 7.8, 7.8 }, shade, { 0, 90, 0 })
+		kit:cylinder(
+			"Deep blue porthole",
+			{ side * 9, 39, 16.1 },
+			{ 0.2, 6.6, 6.6 },
+			{ 82, 177, 209 },
+			{ 0, 90, 0 }
+		)
+		kit:part(
+			"Porthole glass reflection",
+			{ side * 9 - 0.7, 39.4, 16.24 },
+			{ 1, 5, 0.06 },
+			{ 149, 213, 230 },
+			nil,
+			nil,
+			{ 0, 0, 24 }
+		).collide =
+			false
 		for bolt = 0, 7 do
 			local angle = math.pi * bolt / 4
 			kit:ball(
 				"Porthole rivet",
-				{ side * 10 + math.cos(angle) * 4.15, 32.5 + math.sin(angle) * 4.15, 16 },
-				{ 0.42, 0.42, 0.42 },
-				brass
+				{ side * 9 + math.cos(angle) * 4.5, 39 + math.sin(angle) * 4.5, 16 },
+				{ 0.48, 0.48, 0.48 },
+				shade
 			)
 		end
-		kit:cylinder("Entrance brass jamb", { side * 8.4, 8.5, 16 }, { 17, 1.6, 1.6 }, brass)
 		kit:part(
-			"Open door leaf",
-			{ side * 11, 7.8, 18.3 },
-			{ 4, 15.6, 0.7 },
-			{ 126, 95, 58 },
+			"Open wooden door leaf",
+			{ side * 7.9, 8.5, 11 },
+			{ 0.7, 17, 9 },
+			{ 157, 112, 52 },
 			nil,
 			"WoodPlanks"
 		)
 		for y = 2, 14, 6 do
-			kit:part("Door brass strap", { side * 11, y, 18.8 }, { 4.2, 0.5, 0.25 }, brass)
+			kit:part("Door brass strap", { side * 7.5, y, 11 }, { 0.12, 0.5, 9 }, brass)
 		end
-		kit:ball("Door knob", { side * 9.7, 7.8, 19 }, { 0.8, 0.8, 0.8 }, brass)
-		shellLamp(kit, side * 17, 9, 17, false)
-		for seam = 0, 4 do
-			kit:part(
-				"Weathered stone seam",
-				{ side * 17.4, 5 + seam * 6.5, 11.3 },
-				{ 0.25, 2.1, 1.2 },
-				stoneDark,
-				nil,
-				nil,
-				{ 0, 0, side * 18 }
-			)
-		end
+		kit:ball("Door knob", { side * 7.4, 8, 7.5 }, { 0.8, 0.8, 0.8 }, brass)
+		rod(kit, "Arched doorway upright", { side * 7.5, 0, 16 }, { side * 7.5, 11, 16 }, 0.6, shade)
 	end
-	kit:ball("Domed moai crown", { 0, 43, -2 }, { 36, 14, 33 }, stone)
-	kit:part("Open mouth lintel", { 0, 19.8, 13 }, { 17, 4.2, 5 }, stoneDark, nil, "Slate")
-	kit:ball("Long moai nose", { 0, 29.8, 18 }, { 8.5, 19, 10 }, stoneLight)
-	kit:ball("Moai nose tip", { 0, 22, 19 }, { 10, 5, 10 }, stone)
-	kit:part("Entrance brass lintel", { 0, 17.9, 16 }, { 18.5, 1.3, 1.6 }, brass)
-	for z = 12, 34, 4 do
-		kit:part(
-			"Level entry paving",
-			{ 0, 0.045, z },
-			{ 13.8, 0.09, 3.6 },
-			{ 185, 174, 142 },
-			nil,
-			"Sandstone"
+	for i = 0, 15 do
+		local a, b = i * math.pi / 16, (i + 1) * math.pi / 16
+		rod(
+			kit,
+			"Arched doorway stone edge",
+			{ 7.5 * math.cos(a), 11 + 7.5 * math.sin(a), 16 },
+			{ 7.5 * math.cos(b), 11 + 7.5 * math.sin(b), 16 },
+			0.6,
+			shade
 		)
 	end
-	kit:cylinder("Mailbox post", { 20, 3.4, 27 }, { 6.8, 0.8, 0.8 }, stoneDark)
-	kit:ball("Clamshell mailbox", { 20, 7.1, 27 }, { 5, 3.6, 4 }, stoneLight)
-	kit:part("Mailbox slit", { 20, 7, 29 }, { 3.8, 0.35, 0.2 }, ink)
-	kit:part("Mailbox flag", { 22.6, 8.5, 27 }, { 0.4, 3, 0.5 }, brass)
-	kit:label("122", { 20, 9.8, 27 }, cream)
 	return kit
 end
 

@@ -13,7 +13,13 @@ local function part(
 ): Part
 	local p = Instance.new("Part")
 	p.Name, p.Size, p.Color = name, size, color
-	p.Shape = shape or Enum.PartType.Block
+	if shape == Enum.PartType.Ball then
+		local mesh = Instance.new("SpecialMesh")
+		mesh.Name, mesh.MeshType = "Ellipsoid", Enum.MeshType.Sphere
+		mesh.Scale, mesh.Parent = Vector3.one, p
+	else
+		p.Shape = shape or Enum.PartType.Block
+	end
 	p.Anchored, p.CanCollide, p.CanTouch, p.CanQuery = true, false, false, false
 	p.TopSurface, p.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
 	p.CFrame = CFrame.new(position)

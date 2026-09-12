@@ -395,6 +395,7 @@ Update.OnClientEvent:Connect(function(data: Protocol.Snapshot)
 			viewWeapon:Destroy()
 		end
 		local model = Models.weapon(equipped)
+		model:ScaleTo(0.65)
 		model.Parent = camera
 		viewWeapon = model
 	end
@@ -538,7 +539,7 @@ RunService.RenderStepped:Connect(function(dt: number)
 	if viewWeapon then
 		if menu == "" and data and data.health > 0 then
 			viewWeapon:PivotTo(
-				camera.CFrame * CFrame.new(0.75, -0.65, -1.5 + recoil) * CFrame.Angles(recoil, 0, 0)
+				camera.CFrame * CFrame.new(0.8, -0.95, -2 + recoil) * CFrame.Angles(recoil, 0, 0)
 			)
 		else
 			viewWeapon:PivotTo(CFrame.new(0, -500, 0))

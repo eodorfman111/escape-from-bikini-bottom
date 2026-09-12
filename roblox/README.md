@@ -2,7 +2,7 @@
 
 Cooperative fish survival across Conch Street, three houses, the Krusty Krab and the Chum Bucket. Walk through a small exterior doorway to arrive in a much larger furnished interior. Everything is in one Roblox place; friends remain on the same server.
 
-**This is an editable first build. Source checks and place serialization pass on Linux. Roblox Studio rendering, character loading, navigation, camera controls, multiplayer behavior and audio playback still need the Windows playtest below.**
+**This is the revised exterior build. Source checks and place serialization pass on Linux. Roblox Studio rendering, character loading, navigation, camera controls, multiplayer behavior and audio playback still need the Windows playtest below.**
 
 ## Open the download on Windows
 
@@ -13,6 +13,14 @@ Cooperative fish survival across Conch Street, three houses, the Krusty Krab and
 5. Use **GEAR** or **B** to unlock the mouse and open the shop. The **FIELD GUIDE** explains the landmarks.
 
 The place contains all scripts and editable modeled parts. No Rojo plugin, terminal, paid asset, HTTP access or API-service permission is needed to open it.
+
+### Revised Conch Street
+
+Open the replacement place in a new Studio tab rather than importing it into the old place. The street now has evenly spaced residential lots, a narrower teal road, separate paths, and the restaurants facing each other farther along the road. Patrick's low rock and weather vane sit beside a tall blue Moai with a heavy brow, porthole eyes, tapered nose, ears and arched wooden entrance. House heights are approximately 19 studs including Patrick's vane, 41 studs for the Moai, and 38 studs for the pineapple and leaves.
+
+Patrick's rock opens automatically when a player approaches and closes after everyone leaves. Walk toward the exposed pit to enter the larger interior. The lid is cosmetic; the server still controls the doorway transition. In a two-client Studio test, check that both clients see it open when either player approaches.
+
+`Config.Exteriors` controls each landmark's position, scale and facing. The world builder and portal configuration share these transforms; changing street scale does not shrink the remote interiors. Editable exterior models are grouped under `Workspace → ConchWorld → street`. Curved props use explicitly scaled sphere meshes, while the Moai and rock silhouettes use wedge surfaces.
 
 ## Controls and objectives
 
@@ -137,13 +145,14 @@ For live source syncing, build the world first, then run `rojo serve default.pro
 
 `src/client/Game.client.luau` handles character selection, controls, camera, HUD, shop, field guide, visual effects and local music. `Rules.luau` isolates economy, magazine, portal and wave decisions for offline regression tests.
 
-The deterministic location builders produce 7,021 modeled parts over 10 zones, with 18 reciprocal doorways. Interiors sit hundreds of studs from the street; the server changes the character's position and orientation while the client fades the transition. Fish route across the same portal graph and use Roblox pathfinding plus obstacle casts within each zone.
+The deterministic location builders produce 8,172 modeled parts over 10 zones, with 18 reciprocal doorways. Interiors sit hundreds of studs from the street; the server changes the character's position and orientation while the client fades the transition. Fish route across the same portal graph and use Roblox pathfinding plus obstacle casts within each zone.
 
 These are source-informed composite interiors, **not one canonical floor plan**. SpongeBob's architecture varies across episodes. The references were episode guides and still galleries, not an exhaustive viewing of every episode:
 
 - [SpongeBob's house](https://spongebob.fandom.com/wiki/SpongeBob_SquarePants%27_house): recurring living room, nautical kitchen, library, bedroom and bathroom motifs.
 - [Squidward's house](https://spongebob.fandom.com/wiki/Squidward_Tentacles%27_house): gold-bamboo library, shell lamps and portrait studio.
 - [Patrick's house](https://spongebob.fandom.com/wiki/Patrick_Star%27s_house): lifted rock and sand furnishings.
+- [Conch Street](https://spongebob.fandom.com/wiki/Conch_Street): Patrick, Squidward and SpongeBob's relative exterior silhouettes, lot spacing and frontage. Street distances are a playable approximation; the series does not establish a consistent measured town plan.
 - [Krusty Krab](https://spongebob.fandom.com/wiki/Krusty_Krab): lobster-trap exterior, cashier boat, barrel seats, grill and office.
 - [Chum Bucket](https://spongebob.fandom.com/wiki/Chum_Bucket): bucket/glove exterior, cafeteria and Karen's laboratory.
 - The existing browser game's `web/src/research.ts` contains the more detailed episode and artwork notes; each location builder records its recurring motifs.

@@ -1,6 +1,7 @@
 --!strict
 export type Triple = { number }
 export type Zone = { name: string, origin: Triple, size: Triple }
+export type Exterior = { origin: Triple, scale: number, yaw: number }
 export type Portal = {
 	id: string,
 	zone: string,
@@ -43,11 +44,40 @@ Config.StartingCoins = 100
 Config.DiscoveryCoins = 80
 Config.KillCoins = 12
 Config.WaveCoins = 60
-Config.Spawn = { 25, 5, 70 }
+Config.Spawn = { -46, 5, 83 }
+Config.RoadZ = 47
+Config.RoadWidth = 20
+Config.Exteriors = {
+	pineapple = { origin = { 0, 0, 0 }, scale = 0.62, yaw = 0 },
+	moai = { origin = { -46, 0, 0 }, scale = 0.6, yaw = 0 },
+	rock = { origin = { -92, 0, 0 }, scale = 0.6, yaw = 0 },
+	krab = { origin = { 200, 0, -10 }, scale = 0.75, yaw = 0 },
+	bucket = { origin = { 200, 0, 104 }, scale = 0.7, yaw = 180 },
+} :: { [string]: Exterior }
+Config.RockHinge = { 0, 0, -19 }
+Config.FishSpawns = {
+	{ -134, 3, 91 },
+	{ -78, 3, 104 },
+	{ -12, 3, 110 },
+	{ 68, 3, 91 },
+	{ 151, 3, 47 },
+	{ 251, 3, 47 },
+}
+
+function Config.exteriorPoint(id: string, point: Triple): Triple
+	local exterior = Config.Exteriors[id]
+	local angle = math.rad(exterior.yaw)
+	local x, y, z = point[1] * exterior.scale, point[2] * exterior.scale, point[3] * exterior.scale
+	return {
+		exterior.origin[1] + x * math.cos(angle) + z * math.sin(angle),
+		exterior.origin[2] + y,
+		exterior.origin[3] - x * math.sin(angle) + z * math.cos(angle),
+	}
+end
 Config.Avatars =
 	{ explorer = "Reef Explorer", sponge = "SpongeBob", patrick = "Patrick", squid = "Squidward" }
 Config.Zones = {
-	street = { name = "Conch Street", origin = { 30, 0, 30 }, size = { 460, 150, 250 } },
+	street = { name = "Conch Street", origin = { 70, 0, 65 }, size = { 540, 150, 370 } },
 	sponge = { name = "Pineapple · living room & kitchen", origin = { 0, 0, 650 }, size = { 96, 26, 88 } },
 	spongeLibrary = { name = "Pineapple · library", origin = { 0, 0, 850 }, size = { 96, 28, 88 } },
 	spongeBedroom = {
@@ -87,13 +117,21 @@ local function pair(
 	label: string,
 	barricade: boolean
 )
+	local width = 10
+	local exterior = Config.Exteriors[id]
+	if zone == "street" and exterior then
+		position = Config.exteriorPoint(id, position)
+		local angle = math.rad(exterior.yaw)
+		normal = { math.sin(angle), 0, math.cos(angle) }
+		width *= exterior.scale
+	end
 	table.insert(Config.Portals, {
 		id = id .. "-out",
 		zone = zone,
 		target = id .. "-in",
 		position = position,
 		normal = normal,
-		width = 10,
+		width = width,
 		label = label,
 		barricade = barricade,
 	})
@@ -122,7 +160,7 @@ pair(
 pair(
 	"moai",
 	"street",
-	{ -55, 0, 16 },
+	{ 0, 0, 16 },
 	{ 0, 0, 1 },
 	"squid",
 	{ 300, 0, 694 },
@@ -133,7 +171,7 @@ pair(
 pair(
 	"rock",
 	"street",
-	{ -110, 0, 16 },
+	{ 0, 0, 16 },
 	{ 0, 0, 1 },
 	"patrick",
 	{ -300, 0, 694 },
@@ -144,7 +182,7 @@ pair(
 pair(
 	"krab",
 	"street",
-	{ 90, 0, 10 },
+	{ 0, 0, 10 },
 	{ 0, 0, 1 },
 	"krusty",
 	{ 600, 0, 700 },
@@ -155,7 +193,7 @@ pair(
 pair(
 	"bucket",
 	"street",
-	{ 175, 0, 10 },
+	{ 0, 0, 10 },
 	{ 0, 0, 1 },
 	"chum",
 	{ 900, 0, 700 },
