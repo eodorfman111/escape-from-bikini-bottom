@@ -1,0 +1,46 @@
+{
+  "name": "ConchStreetSurvival",
+  "tree": {
+    "$className": "DataModel",
+    "Workspace": {
+      "$className": "Workspace",
+      "$properties": { "Gravity": 150, "FallenPartsDestroyHeight": -100, "StreamingEnabled": false }
+    },
+    "Lighting": {
+      "$className": "Lighting",
+      "$properties": {
+        "Ambient": [0.32, 0.48, 0.52],
+        "OutdoorAmbient": [0.42, 0.62, 0.65],
+        "Brightness": 2.5,
+        "ClockTime": 10,
+        "GlobalShadows": true,
+        "EnvironmentDiffuseScale": 0.7,
+        "EnvironmentSpecularScale": 0.8
+      }
+    },
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "Conch": {
+        "$path": "src/shared",
+        "Action": { "$className": "RemoteEvent" },
+        "Update": { "$className": "RemoteEvent" },
+        "Effect": { "$className": "RemoteEvent" }
+      }
+    },
+    "ServerScriptService": { "$className": "ServerScriptService", "ConchServer": { "$path": "src/server" } },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "$properties": { "CameraMinZoomDistance": 0.5, "CameraMaxZoomDistance": 20 },
+      "StarterPlayerScripts": { "$className": "StarterPlayerScripts", "ConchClient": { "$path": "src/client" } }
+    },
+    "SoundService": {
+      "$className": "SoundService",
+      "ConchMusic": {
+        "$className": "Folder",
+        "Explore": { "$className": "Sound", "$properties": { "Looped": true, "Volume": 0 } },
+        "Combat": { "$className": "Sound", "$properties": { "Looped": true, "Volume": 0 } },
+        "Danger": { "$className": "Sound", "$properties": { "Looped": true, "Volume": 0 } }
+      }
+    }
+  }
+}
