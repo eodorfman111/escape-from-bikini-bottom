@@ -6,6 +6,7 @@ local ContextActionService = game:GetService("ContextActionService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local SoundService = game:GetService("SoundService")
+local ContentProvider = game:GetService("ContentProvider")
 local Debris = game:GetService("Debris")
 local Shared = ReplicatedStorage:WaitForChild("Conch")
 local Config = require(Shared.Config)
@@ -93,6 +94,18 @@ notice.TextXAlignment, notice.TextStrokeTransparency = Enum.TextXAlignment.Cente
 local fade = Instance.new("Frame")
 fade.Size, fade.BackgroundColor3, fade.BackgroundTransparency = UDim2.fromScale(1, 1), sea, 1
 fade.ZIndex, fade.Parent = 10, gui
+local travelCover = Instance.new("Frame")
+travelCover.Size, travelCover.BackgroundColor3 = UDim2.fromScale(1, 1), Color3.fromRGB(14, 69, 91)
+travelCover.BackgroundTransparency, travelCover.ZIndex, travelCover.Parent = 1, 100, gui
+travelCover.BorderSizePixel = 0
+local travelText = Instance.new("TextLabel")
+travelText.Size, travelText.Position = UDim2.fromScale(1, 0.15), UDim2.fromScale(0, 0.43)
+travelText.BackgroundTransparency, travelText.TextTransparency = 1, 1
+travelText.Text, travelText.TextSize, travelText.Font =
+	"Traveling through Bikini Bottom...", 26, Enum.Font.GothamMedium
+travelText.TextColor3, travelText.ZIndex, travelText.Parent = Color3.fromRGB(222, 249, 239), 101, travelCover
+local travelTween: Tween? = nil
+local travelVersion = 0
 local overlay = panel(gui, UDim2.new(0.5, -330, 0.5, -295), UDim2.fromOffset(660, 590))
 overlay.ZIndex = 3
 local scale = Instance.new("UIScale")
@@ -219,7 +232,7 @@ local function renderMenu()
 			},
 			{
 				"The pineapple",
-				"Living room and nautical kitchen; curved library, hanging chair and organ; life-ring bed, flower blanket, foghorn and Gary. Sources: Jellyfishing, Boating School, Suds still guides.",
+				"Walk between the living room, kitchen, library, bedroom and bathroom through enclosed hallways. Only the street doorway teleports. Look for the organ, flower blanket, foghorn and Gary.",
 			},
 			{
 				"The moai",
@@ -231,7 +244,11 @@ local function renderMenu()
 			},
 			{
 				"Restaurants",
-				"Walk through the Krusty Krab to its grill and office; visit Karen and the laboratory inside the Chum Bucket. Discoveries award 80 coins each.",
+				"Krusty Krab: dining room, cashier boat, grill, office, restrooms, freezer, storage and a rear dumpster yard. Across the road, explore Karen's Chum Bucket laboratory.",
+			},
+			{
+				"Beyond Conch Street",
+				"Find the parked Patty Wagon beside the pineapple. Follow the road east to Mrs. Puff's classroom, lighthouse and boat course, or head south to Jellyfish Fields. Find 26 keepsakes worth 80 coins each.",
 			},
 			{
 				"Survival tips",
@@ -239,7 +256,7 @@ local function renderMenu()
 			},
 			{
 				"Audio",
-				"Original music files are included with the Studio download. Upload them and set AudioConfig IDs to enable adaptive music. Authorized replacement tracks work too.",
+				"Music is enabled with Roblox Creator Store tracks: Marching To Honolulu, Tropical Jazz OL, and Intense Chase, courtesy of APM Music. Original optional WAV loops are also included.",
 			},
 		}
 		for i, note in notes do
@@ -328,8 +345,17 @@ local tracks: { [string]: Sound } = {}
 for _, name in { "Explore", "Combat", "Danger" } do
 	local sound = musicFolder:WaitForChild(name) :: Sound
 	sound.SoundId = AudioConfig[name]
-	sound.Volume = 0
+	sound.Volume, sound.Looped = 0, true
 	tracks[name] = sound
+	task.spawn(function()
+		local ok, message = pcall(function()
+			ContentProvider:PreloadAsync({ sound })
+		end)
+		if not ok or not sound.IsLoaded then
+			warn("Conch music could not load " .. name .. ": " .. tostring(message))
+			musicButton.Text = "AUDIO LOAD ERROR"
+		end
+	end)
 end
 local function updateMusic(data: Protocol.Snapshot)
 	local name = if data.survival
@@ -422,10 +448,41 @@ local function visualPart(position: Vector3, color: Color3): Part
 	return part
 end
 Effect.OnClientEvent:Connect(function(kind: string, a: Vector3, b: Vector3, color: Color3, amount: number)
-	if kind == "portal" then
-		camera.CFrame = CFrame.new(camera.CFrame.Position) * CFrame.Angles(0, a.Y, 0) * camera.CFrame.Rotation
-		fade.BackgroundColor3, fade.BackgroundTransparency = color, 0
-		TweenService:Create(fade, TweenInfo.new(0.25), { BackgroundTransparency = 1 }):Play()
+	if kind == "travelStart" then
+		travelVersion += 1
+		local version = travelVersion
+		if travelTween then
+			travelTween:Cancel()
+		end
+		travelText.TextTransparency = 0
+		local tween = TweenService:Create(travelCover, TweenInfo.new(0.2), { BackgroundTransparency = 0 })
+		travelTween = tween
+		tween:Play()
+		task.delay(0.22, function()
+			if version == travelVersion then
+				travelCover.BackgroundTransparency = 0
+				Action:FireServer("travelReady")
+			end
+		end)
+		return
+	elseif kind == "portal" or kind == "travelCancel" then
+		travelVersion += 1
+		if travelTween then
+			travelTween:Cancel()
+		end
+		if kind == "portal" then
+			camera.CFrame = CFrame.new(camera.CFrame.Position)
+				* CFrame.Angles(0, a.Y, 0)
+				* camera.CFrame.Rotation
+		end
+		travelText.TextTransparency = 1
+		local tween = TweenService:Create(
+			travelCover,
+			TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0, false, 0.15),
+			{ BackgroundTransparency = 1 }
+		)
+		travelTween = tween
+		tween:Play()
 		return
 	elseif kind == "hurt" then
 		fade.BackgroundColor3, fade.BackgroundTransparency = color, 0.65

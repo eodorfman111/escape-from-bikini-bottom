@@ -16,7 +16,16 @@ local actors = Instance.new("Folder")
 actors.Name, actors.Parent = "ConchActors", workspace
 Players.CharacterAutoLoads = false
 
-type Crew = { id: string, model: Model, nextAttack: number }
+type Navigator = {
+	model: Model,
+	zone: string,
+	pathAt: number,
+	pending: boolean,
+	revision: number,
+	waypoints: { Vector3 },
+	waypoint: number,
+}
+type Crew = Navigator & { id: string, nextAttack: number }
 type State = {
 	wallet: Rules.Wallet,
 	magazines: { [string]: Rules.Magazine },
@@ -28,22 +37,19 @@ type State = {
 	bucket: Rules.Bucket,
 	previous: Vector3?,
 	lastPortal: number,
+	pendingPortal: string?,
+	portalRoot: BasePart?,
+	portalAt: number,
 	supplyAt: number,
 	crew: { Crew },
 	message: string,
 	messageUntil: number,
 	loading: boolean,
 }
-type Fish = {
-	model: Model,
-	zone: string,
+type Fish = Navigator & {
 	health: number,
 	slowUntil: number,
 	attackAt: number,
-	pathAt: number,
-	pending: boolean,
-	waypoints: { Vector3 },
-	waypoint: number,
 }
 type Slime = { zone: string, position: Vector3, expires: number, owner: Player }
 local states: { [Player]: State } = {}
@@ -192,6 +198,7 @@ local function nextDoor(from: string, target: string): Config.Portal?
 	return nil
 end
 local function teleport(player: Player, state: State, portal: Config.Portal, root: BasePart)
+	state.pendingPortal, state.portalRoot = nil, nil
 	local destination = portals[portal.target]
 	local from, toward = -vec(portal.normal), vec(destination.normal)
 	local yaw = math.atan2(-toward.X, -toward.Z) - math.atan2(-from.X, -from.Z)
@@ -200,16 +207,37 @@ local function teleport(player: Player, state: State, portal: Config.Portal, roo
 	if player.Character then
 		player.Character:PivotTo(CFrame.new(position) * rotation * root.CFrame.Rotation)
 	end
+	root.Anchored = false
 	root.AssemblyLinearVelocity = rotation:VectorToWorldSpace(root.AssemblyLinearVelocity)
 	state.zone, state.previous, state.lastPortal = destination.zone, position, os.clock()
 	player:SetAttribute("ConchZone", state.zone)
 	Effect:FireClient(player, "portal", Vector3.new(0, yaw, 0), Vector3.zero, Color3.new(0.2, 0.8, 0.9), 0.2)
 	for _, member in state.crew do
-		member.model:PivotTo(CFrame.new(position + Vector3.new(3, 0, 3)))
+		member.model:PivotTo(CFrame.new(position.X, 3, position.Z))
+		member.zone, member.waypoints, member.pathAt = destination.zone, {}, os.clock()
+		member.revision += 1
+		member.pending = false
 	end
 end
 local function travel(player: Player, state: State, now: number)
 	local root = rootOf(player)
+	if state.pendingPortal then
+		if now - state.portalAt > 4 or root ~= state.portalRoot or not alive(player) then
+			local held = state.portalRoot
+			if held then
+				if held == root and alive(player) then
+					local portal = portals[state.pendingPortal]
+					local position = vec(portal.position) + vec(portal.normal) * 6 + Vector3.new(0, 3.2, 0)
+					held.CFrame = CFrame.new(position) * held.CFrame.Rotation
+				end
+				held.Anchored = false
+			end
+			state.pendingPortal, state.portalRoot, state.previous = nil, nil, nil
+			state.lastPortal = now
+			Effect:FireClient(player, "travelCancel", Vector3.zero, Vector3.zero, Color3.new(), 0)
+		end
+		return
+	end
 	if not root or not alive(player) then
 		state.previous = nil
 		return
@@ -231,7 +259,9 @@ local function travel(player: Player, state: State, now: number)
 					portal.width
 				)
 			then
-				teleport(player, state, portal, root)
+				state.pendingPortal, state.portalRoot, state.portalAt = portal.id, root, now
+				root.Anchored = true
+				Effect:FireClient(player, "travelStart", Vector3.zero, Vector3.zero, Color3.new(), 0)
 				return
 			end
 		end
@@ -243,9 +273,13 @@ local function travel(player: Player, state: State, now: number)
 		or math.abs(offset.Z) > zone.size[3] / 2 + 10
 		or position.Y < -20
 	then
-		local safe = if state.zone == "street"
-			then vec(Config.Spawn)
-			else vec(zone.origin) + Vector3.new(0, 4, 30)
+		local safe = vec(Config.Spawn)
+		for _, portal in Config.Portals do
+			if portal.zone == state.zone and state.zone ~= "street" then
+				safe = vec(portal.position) + vec(portal.normal) * 8 + Vector3.new(0, 4, 0)
+				break
+			end
+		end
 		if player.Character then
 			player.Character:PivotTo(CFrame.new(safe))
 		end
@@ -287,6 +321,7 @@ local function join(player: Player)
 		bucket = { tokens = 30, updated = os.clock() },
 		previous = nil,
 		lastPortal = 0,
+		portalAt = 0,
 		supplyAt = 0,
 		crew = {},
 		message = "",
@@ -309,6 +344,12 @@ local function join(player: Player)
 		character:PivotTo(CFrame.new(vec(Config.Spawn)))
 		state.zone, state.previous, state.lastPortal = "street", nil, os.clock()
 		player:SetAttribute("ConchZone", "street")
+		for _, member in state.crew do
+			member.model:PivotTo(CFrame.new(Config.Spawn[1], 3, Config.Spawn[3]))
+			member.zone, member.waypoints, member.pathAt = "street", {}, os.clock()
+			member.revision += 1
+			member.pending = false
+		end
 		for id, magazine in state.magazines do
 			magazine.ammo, magazine.reloadAt = Config.Weapons[id].magazine, 0
 		end
@@ -392,7 +433,26 @@ end
 
 Action.OnServerEvent:Connect(function(player: Player, action: unknown, payload: unknown)
 	local state = states[player]
-	if not state or typeof(action) ~= "string" or not Rules.admit(state.bucket, os.clock()) then
+	if not state or typeof(action) ~= "string" then
+		return
+	end
+	if action == "travelReady" then
+		local root = rootOf(player)
+		local pending = state.pendingPortal
+		if
+			pending
+			and root
+			and root == state.portalRoot
+			and state.ready
+			and alive(player)
+			and os.clock() - state.portalAt >= 0.15
+			and os.clock() - state.portalAt < 4
+		then
+			teleport(player, state, portals[pending], root)
+		end
+		return
+	end
+	if not Rules.admit(state.bucket, os.clock()) then
 		return
 	end
 	if action == "start" and typeof(payload) == "string" then
@@ -427,9 +487,21 @@ Action.OnServerEvent:Connect(function(player: Player, action: unknown, payload: 
 				model.Parent = actors
 				local root = rootOf(player)
 				if root then
-					model:PivotTo(root.CFrame * CFrame.new(4, 0, 4))
+					local initial = Vector3.new(root.Position.X, 3, root.Position.Z)
+					local offset = initial + Vector3.new(4, 0, 4)
+					model:PivotTo(CFrame.new(if canMove(initial, offset) then offset else initial))
 				end
-				table.insert(state.crew, { id = payload, model = model, nextAttack = 0 })
+				table.insert(state.crew, {
+					id = payload,
+					model = model,
+					nextAttack = 0,
+					zone = state.zone,
+					pathAt = 0,
+					pending = false,
+					revision = 0,
+					waypoints = {},
+					waypoint = 1,
+				})
 			end
 		end
 	elseif action == "dismiss" and typeof(payload) == "string" then
@@ -536,6 +608,7 @@ local function spawnWave(fighters: { Player })
 			attackAt = 0,
 			pathAt = os.clock() + i * 0.08,
 			pending = false,
+			revision = 0,
 			waypoints = {},
 			waypoint = 1,
 		}
@@ -547,10 +620,11 @@ local function spawnWave(fighters: { Player })
 	everyone("Wave " .. wave .. " • " .. count .. " restless fish")
 end
 
-local function navigate(enemy: Fish, goal: Vector3, now: number, dt: number)
+local function navigate(enemy: Navigator, goal: Vector3, now: number, dt: number, speed: number)
 	local position = enemy.model:GetPivot().Position
 	if now >= enemy.pathAt and not enemy.pending then
 		enemy.pathAt, enemy.pending = now + 2.5, true
+		local revision = enemy.revision
 		task.spawn(function()
 			local zone = enemy.zone
 			local path = PathfindingService:CreatePath({
@@ -562,14 +636,22 @@ local function navigate(enemy: Fish, goal: Vector3, now: number, dt: number)
 			local ok = pcall(function()
 				path:ComputeAsync(position, goal)
 			end)
-			if enemy.health > 0 and enemy.zone == zone and ok and path.Status == Enum.PathStatus.Success then
+			if
+				enemy.model.Parent
+				and enemy.zone == zone
+				and enemy.revision == revision
+				and ok
+				and path.Status == Enum.PathStatus.Success
+			then
 				local points: { Vector3 } = {}
 				for _, waypoint in path:GetWaypoints() do
 					table.insert(points, Vector3.new(waypoint.Position.X, 3, waypoint.Position.Z))
 				end
 				enemy.waypoints, enemy.waypoint = points, 2
 			end
-			enemy.pending = false
+			if enemy.revision == revision then
+				enemy.pending = false
+			end
 		end)
 	end
 	local target = enemy.waypoints[enemy.waypoint]
@@ -583,10 +665,12 @@ local function navigate(enemy: Fish, goal: Vector3, now: number, dt: number)
 	local delta = target - position
 	if delta.Magnitude < 1 then
 		enemy.waypoint += 1
-	elseif canMove(position, position + delta.Unit * math.min(delta.Magnitude, 2)) then
-		local distance = math.min(delta.Magnitude, Rules.speed(8 + wave * 0.6, enemy.slowUntil, now) * dt)
+	else
+		local distance = math.min(delta.Magnitude, speed * dt)
 		local nextPosition = position + delta.Unit * distance
-		enemy.model:PivotTo(CFrame.lookAt(nextPosition, nextPosition + delta.Unit))
+		if canMove(position, nextPosition) then
+			enemy.model:PivotTo(CFrame.lookAt(nextPosition, nextPosition + delta.Unit))
+		end
 	end
 end
 local function updateFish(now: number, dt: number, fighters: { Player })
@@ -633,6 +717,8 @@ local function updateFish(now: number, dt: number, fighters: { Player })
 				local point = vec(destination.position) + vec(destination.normal) * 5 + Vector3.new(0, 3, 0)
 				enemy.model:PivotTo(CFrame.lookAt(point, point + vec(destination.normal)))
 				enemy.zone, enemy.waypoints, enemy.pathAt = destination.zone, {}, now
+				enemy.revision += 1
+				enemy.pending = false
 				continue
 			end
 		elseif nearest < 5 and now >= enemy.attackAt and lineClear(position, root.Position) then
@@ -643,7 +729,7 @@ local function updateFish(now: number, dt: number, fighters: { Player })
 			enemy.attackAt = now + 1
 			Effect:FireClient(chosen, "hurt", position, Vector3.zero, Color3.new(1, 0.2, 0.2), 0.25)
 		end
-		navigate(enemy, goal, now, dt)
+		navigate(enemy, goal, now, dt, Rules.speed(8 + wave * 0.6, enemy.slowUntil, now))
 	end
 end
 
@@ -656,7 +742,10 @@ local function updateCrew(player: Player, state: State, now: number, dt: number)
 		local spec = Config.Helpers[member.id]
 		local anchor = (root.CFrame * CFrame.new((i - 2) * 4, 0, 6)).Position
 		anchor = Vector3.new(anchor.X, 3, anchor.Z)
-		local position = member.model:GetPivot().Position
+		local floorPosition = Vector3.new(root.Position.X, 3, root.Position.Z)
+		if not canMove(floorPosition, anchor) then
+			anchor = floorPosition
+		end
 		local closest: Fish? = nil
 		local nearest = spec.range
 		if state.survival then
@@ -672,9 +761,8 @@ local function updateCrew(player: Player, state: State, now: number, dt: number)
 		if closest and member.id == "sandy" then
 			anchor = closest.model:GetPivot().Position + Vector3.new(2, 0, 0)
 		end
-		local step = if (position - anchor).Magnitude > 70
-			then anchor
-			else position:Lerp(anchor, math.min(1, dt * 5))
+		navigate(member, anchor, now, dt, 24)
+		local step = member.model:GetPivot().Position
 		local facing = if closest then closest.model:GetPivot().Position else step + root.CFrame.LookVector
 		if (facing - step).Magnitude > 0.01 then
 			member.model:PivotTo(CFrame.lookAt(step, Vector3.new(facing.X, step.Y, facing.Z)))
@@ -752,7 +840,7 @@ RunService.Heartbeat:Connect(function(dt)
 	accumulator = 0
 	for id, door in doorParts do
 		local key = barrierId(portals[id])
-		door.Transparency = if key and (barriers[key] or 0) > now then 0.35 else 0.92
+		door.Transparency = if key and (barriers[key] or 0) > now then 0.35 else 1
 	end
 	for player, state in states do
 		if state.ready then

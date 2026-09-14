@@ -15,7 +15,6 @@ local Color3 = roblox.Color3
 local Vector3 = roblox.Vector3
 local CFrame = roblox.CFrame
 local Enum = roblox.Enum
-local UDim2 = roblox.UDim2
 local materials: { [string]: Enum.Material } = {}
 local shapes: { [string]: Enum.PartType } = {}
 for _, material in Enum.Material:GetEnumItems() do
@@ -85,22 +84,6 @@ for _, spec in parts do
 		prompt.Parent = part
 		part:SetAttribute("Supply", spec.supply == true)
 	end
-	if spec.label then
-		local gui = Instance.new("BillboardGui")
-		gui.Size = UDim2.fromOffset(220, 70)
-		gui.MaxDistance = 90
-		gui.StudsOffset = Vector3.new(0, 1, 0)
-		local text = Instance.new("TextLabel")
-		text.Size = UDim2.fromScale(1, 1)
-		text.BackgroundTransparency = 1
-		text.TextColor3 = Color3.fromRGB(255, 242, 211)
-		text.TextStrokeTransparency = 0.3
-		text.TextSize = 18
-		text.TextWrapped = true
-		text.Text = spec.label
-		text.Parent = gui
-		gui.Parent = part
-	end
 	if spec.light > 0 then
 		local light = Instance.new("PointLight")
 		light.Color = color(spec.color)
@@ -139,6 +122,26 @@ for _, portal in Config.Portals do
 	part:SetAttribute("Portal", portal.id)
 	part:SetAttribute("Zone", portal.zone)
 	part.Parent = zones[portal.zone]
+	local face = Instance.new("Part")
+	face.Name = "Opaque doorway"
+	face.Size = Vector3.new(if portal.zone == "street" then portal.width * 1.5 else 12, height + 1.5, 0.4)
+	face.CFrame = part.CFrame
+	face.Color = Color3.fromRGB(53, 106, 137)
+	face.Material = Enum.Material.WoodPlanks
+	face.Anchored, face.CanCollide, face.CanTouch, face.CanQuery = true, false, false, false
+	face:SetAttribute("Zone", portal.zone)
+	face:SetAttribute("DoorCover", portal.id)
+	face.Parent = zones[portal.zone]
+	for _, side in { -1, 1 } do
+		local handle = Instance.new("Part")
+		handle.Name = "Brass doorway handle"
+		handle.Size = Vector3.new(0.3, 1.7, 0.4)
+		handle.CFrame = face.CFrame * CFrame.new(face.Size.X * 0.3, -height * 0.1, side * 0.4)
+		handle.Color = Color3.fromRGB(230, 192, 103)
+		handle.Material = Enum.Material.Metal
+		handle.Anchored, handle.CanCollide, handle.CanTouch, handle.CanQuery = true, false, false, false
+		handle.Parent = face
+	end
 	local canBarricade = portal.barricade
 	for _, paired in Config.Portals do
 		if paired.id == portal.target and paired.barricade then

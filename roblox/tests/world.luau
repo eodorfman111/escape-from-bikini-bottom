@@ -108,5 +108,5 @@ local total = 0
 for _ in discoveries do
 	total += 1
 end
-check(total == 20, "Twenty unique keepsakes")
+check(total == 26, "Twenty-six unique keepsakes")
 print("PASS", checks, "geometry, doorway-clearance and place round-trip assertions;", #specs, "modeled parts")

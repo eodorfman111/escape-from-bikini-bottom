@@ -1,8 +1,6 @@
 --!strict
 -- selene: allow(incorrect_standard_library_use)
 local WorldKit = require("../WorldKit")
--- selene: allow(incorrect_standard_library_use)
-local Config = require("../../src/shared/Config")
 
 type Triple = WorldKit.Triple
 type Kit = WorldKit.Kit
@@ -175,7 +173,7 @@ local function exterior(): Kit
 		kit:part("Side lower hull", { x, 2, -11 }, { 1.2, 4, 42 }, C.wood, nil, "WoodPlanks")
 		kit:part("Side upper hull", { x, 16, -11 }, { 1.2, 2, 42 }, C.honey, nil, "WoodPlanks")
 		local glass = kit:part("Blue side window", { x, 9.5, -11 }, { 0.35, 11, 39 }, C.glass, nil, "Glass")
-		glass.transparency = 0.4
+		glass.transparency = 0
 		for z = -31, 9, 10 do
 			rod(kit, "Rounded hull post", { x, 0, z }, { x, 17, z }, 1.1, C.dark).collide = true
 		end
@@ -207,7 +205,7 @@ local function exterior(): Kit
 			nil,
 			"Glass"
 		)
-		pane.transparency = 0.45
+		pane.transparency = 0
 		for _, edge in { 8.5, 27.5 } do
 			rod(kit, "Entrance jamb", { side * edge, 0, 10 }, { side * edge, 17, 10 }, 1, C.dark).collide =
 				true
@@ -217,8 +215,7 @@ local function exterior(): Kit
 			rod(kit, "Window sill trim", { side * 9, y, 10.7 }, { side * 27, y, 10.7 }, 0.65, C.honey)
 		end
 		kit:part("Open door leaf", { side * 8.3, 7.5, 6.5 }, { 0.45, 15, 6.2 }, C.wood, nil, "WoodPlanks")
-		kit:part("Open door inset", { side * 8.02, 9, 6.5 }, { 0.1, 8, 4.5 }, C.glass, nil, "Glass").transparency =
-			0.3
+		kit:part("Open door inset", { side * 8.02, 9, 6.5 }, { 0.1, 8, 4.5 }, C.glass, nil, "Glass")
 		kit:ball("Door brass knob", { side * 7.75, 6.2, 4 }, { 0.65, 0.65, 0.65 }, C.brass)
 	end
 	kit:part("High entrance header", { 0, 18, 10 }, { 57, 2, 1.6 }, C.dark, nil, "Wood")
@@ -323,6 +320,22 @@ local function exterior(): Kit
 		kit:light({ side * 11, 13.5, 11.7 }, C.cream, 17)
 		kit:ball("Lantern cap", { side * 11, 14.7, 11.7 }, { 3, 1, 3 }, C.navy)
 	end
+	kit:part("Kitchen annex roof", { 18, 16, -48 }, { 24, 1.5, 34 }, C.honey, nil, "WoodPlanks")
+	for _, x in { 6, 30 } do
+		kit:part("Kitchen annex side", { x, 8, -48 }, { 1.2, 16, 32 }, C.wood, nil, "WoodPlanks")
+	end
+	for _, x in { 8.5, 27.5 } do
+		kit:part("Rear service jamb", { x, 8, -64 }, { 5, 16, 1.2 }, C.wood, nil, "WoodPlanks")
+	end
+	kit:part("Service yard", { 8, -0.2, -81 }, { 70, 0.4, 34 }, C.honey, nil, "Concrete")
+	kit:part("Dumpster body", { -14, 4, -75 }, { 15, 8, 10 }, C.teal, nil, "Metal")
+	for _, z in { -77.6, -72.4 } do
+		kit:part("Dumpster black lid", { -14, 8.2, z }, { 15.5, 0.6, 5 }, C.navy, nil, "Metal")
+	end
+	for _, x in { -20, -8 } do
+		kit:cylinder("Dumpster wheel", { x, 0.6, -75 }, { 1, 2, 2 }, C.navy, { 0, 0, 0 })
+	end
+	kit:part("Restaurant side boardwalk", { 36, 0.1, -35 }, { 10, 0.2, 90 }, C.honey, nil, "WoodPlanks")
 	return kit
 end
 
@@ -381,6 +394,17 @@ end
 
 local function diningRoom(kit: Kit)
 	kit:room(116, 100, 30, C.wood, C.green, false)
+	for _, part in kit.parts do
+		if part.name == "Back wall" then
+			part.position[1], part.size[1] = kit.origin[1] - 15, 86
+		elseif part.name == "Right wall" then
+			part.position[3], part.size[3] = kit.origin[3] - 41, 18
+		end
+	end
+	kit:part("Rear wall beside service passage", { 50, 15, -50 }, { 16, 30, 1.2 }, C.wood)
+	kit:part("Service passage lintel", { 35, 23.5, -50 }, { 14, 13, 1.2 }, C.wood)
+	kit:part("Right wall beside restroom passage", { 58, 15, 16 }, { 1.2, 30, 68 }, C.wood)
+	kit:part("Restroom passage lintel", { 58, 23.5, -25 }, { 1.2, 13, 14 }, C.wood)
 	for x = -54, 54, 6 do
 		kit:part("Flush floorboard seam", { x, 0.012, 0 }, { 0.07, 0.02, 98 }, { 101, 145, 94 }).collide =
 			false
@@ -397,7 +421,12 @@ local function diningRoom(kit: Kit)
 			end
 		end
 		for _, y in { 1.1, 24.5 } do
-			kit:part("Side hull trim", { side * 56.9, y, 0 }, { 1.3, 0.6, 98 }, C.honey, nil, "Wood")
+			if side == 1 and y == 1.1 then
+				kit:part("Side hull trim", { 56.9, y, -41.5 }, { 1.3, 0.6, 15 }, C.honey, nil, "Wood")
+				kit:part("Side hull trim", { 56.9, y, 16.5 }, { 1.3, 0.6, 65 }, C.honey, nil, "Wood")
+			else
+				kit:part("Side hull trim", { side * 56.9, y, 0 }, { 1.3, 0.6, 98 }, C.honey, nil, "Wood")
+			end
 		end
 		for _, z in { 16, 39 } do
 			porthole(kit, side, z)
@@ -414,10 +443,10 @@ local function diningRoom(kit: Kit)
 			kit:light({ x, 21.9, z }, C.cream, 29)
 		end
 	end
-	wheelTable(kit, -32, 32, C.red, true)
-	wheelTable(kit, 32, 32, C.brass, false)
-	wheelTable(kit, -32, 8, C.brass, false)
-	wheelTable(kit, 32, 8, C.red, true)
+	wheelTable(kit, -38, 32, C.red, true)
+	wheelTable(kit, 38, 32, C.brass, false)
+	wheelTable(kit, -38, 8, C.brass, false)
+	wheelTable(kit, 38, 8, C.red, true)
 	kit:cylinder("Crow's nest mast", { -53, 15, 3 }, { 30, 2.4, 2.4 }, C.navy)
 	kit:cylinder("Crow's nest basket", { -51, 25, 3 }, { 2, 9, 9 }, C.honey)
 	ring(kit, "Crow's nest rail", { -51, 28, 3 }, 4.5, 0.4, C.rope, "Y")
@@ -439,13 +468,13 @@ local function diningRoom(kit: Kit)
 	kit:part("Condiment napkin stack", { 50, 7, -5 }, { 2, 0.6, 2.8 }, C.cream)
 	local penny = kit:cylinder(
 		"Doubloon under the barrel seat",
-		{ -42, 0.18, 12.2 },
+		{ -48, 0.18, 12.2 },
 		{ 0.3, 1.8, 1.8 },
 		C.brass
 	)
 	penny.secret = "krusty_dropped_doubloon"
 	penny.collide = false
-	kit:part("Doubloon embossed stroke", { -42, 0.36, 12.2 }, { 0.15, 0.08, 1.2 }, C.cream).collide = false
+	kit:part("Doubloon embossed stroke", { -48, 0.36, 12.2 }, { 0.15, 0.08, 1.2 }, C.cream).collide = false
 end
 
 local function bulkheads(kit: Kit)
@@ -588,6 +617,7 @@ local function grill(kit: Kit)
 			C.cream
 		)
 	end
+	local sinkStart = #kit.parts + 1
 	kit:part("Sink cupboard", { 51, 3, -24 }, { 10, 6, 10 }, C.teal)
 	kit:part("Dark sink basin", { 51, 6.2, -24 }, { 8, 0.5, 7 }, C.navy, nil, "Metal")
 	for _, x in { 46.5, 55.5 } do
@@ -600,6 +630,9 @@ local function grill(kit: Kit)
 	rod(kit, "Faucet spout", { 55, 10, -25 }, { 52, 10, -25 }, 0.45, C.steel)
 	kit:ball("Faucet elbow", { 55, 10, -25 }, { 0.8, 0.8, 0.8 }, C.steel)
 	kit:part("Sponge at sink", { 48, 7.1, -20 }, { 1.8, 0.7, 1.2 }, C.brass)
+	for i = sinkStart, #kit.parts do
+		kit.parts[i].position[3] -= 42
+	end
 	kit:part("Prep shelf", { -11, 6.5, -27 }, { 8, 0.75, 14 }, C.cream)
 	for _, z in { -32, -22 } do
 		kit:cylinder("Prep counter leg", { -10, 3, z }, { 6, 0.7, 0.7 }, C.steel)
@@ -724,14 +757,83 @@ local function office(kit: Kit)
 	kit:light({ -37, 24, -32 }, { 255, 211, 134 }, 32)
 end
 
+local function serviceRooms(kit: Kit)
+	kit:part("Service wing floor", { 0, -0.6, -75 }, { 118, 1.2, 52 }, C.paleSteel, nil, "Concrete")
+	kit:part("Service wing ceiling", { 0, 24, -75 }, { 118, 1, 52 }, C.steel)
+	for _, x in { -58, 58 } do
+		kit:part("Service wing outer side", { x, 12, -75 }, { 1.2, 24, 50 }, C.steel)
+	end
+	kit:part("Service wing rear left", { -15, 12, -100 }, { 86, 24, 1.2 }, C.steel)
+	kit:part("Service wing rear right", { 50, 12, -100 }, { 16, 24, 1.2 }, C.steel)
+	kit:part("Rear exit lintel", { 35, 20.5, -100 }, { 14, 7, 1.2 }, C.steel)
+	kit:part("Freezer front insulation", { -38, 12, -56 }, { 40, 24, 1.2 }, C.paleSteel)
+	for _, z in { -91, -63 } do
+		kit:part("Freezer partition", { -18, 12, z }, { 1.2, 24, 12 }, C.paleSteel)
+	end
+	kit:part("Freezer doorway lintel", { -18, 20.5, -77 }, { 1.2, 7, 16 }, C.paleSteel)
+	kit:part("Freezer icy floor", { -38, 0.04, -77 }, { 38, 0.08, 40 }, { 163, 219, 228 }).collide = false
+	for _, z in { -62, -93 } do
+		kit:part("Freezer rack posts", { -50, 9, z }, { 1, 18, 1 }, C.navy)
+		for _, y in { 3, 9, 15 } do
+			kit:part("Frozen patty shelf", { -45, y, z }, { 20, 0.5, 6 }, C.steel)
+			for _, x in { -52, -44, -36 } do
+				kit:part("Frozen patty carton", { x, y + 1.6, z }, { 5, 3, 4 }, C.cream)
+				kit:ball("Carton burger emblem", { x, y + 1.6, z + 2.1 }, { 2, 1.4, 0.1 }, C.honey).collide =
+					false
+			end
+		end
+	end
+	for _, x in { -48, -36, -25 } do
+		kit:part("Freezer icicle", { x, 22, -96 }, { 0.6, 3, 0.6 }, C.glass).collide = false
+	end
+	kit:light({ -36, 20, -76 }, { 149, 218, 255 }, 32)
+	for _, x in { -8, 12 } do
+		for _, y in { 2, 7, 12 } do
+			kit:part("Dry storage shelf", { x, y, -94 }, { 14, 0.6, 7 }, C.honey, nil, "WoodPlanks")
+			for _, dx in { -4, 1, 5 } do
+				kit:cylinder("Ingredient barrel", { x + dx, y + 2, -94 }, { 3.5, 3.5, 3.5 }, C.wood)
+			end
+		end
+	end
+	kit:light({ 28, 21, -75 }, C.cream, 40)
+	kit:part("Restroom wing floor", { 84, -0.6, -31 }, { 54, 1.2, 40 }, C.cream, nil, "Marble")
+	kit:part("Restroom wing ceiling", { 84, 22.5, -31 }, { 54, 1, 40 }, C.paleSteel)
+	for _, z in { -50, -12 } do
+		kit:part("Restroom outer wall", { 84, 11, z }, { 52, 22, 1.2 }, C.steel)
+	end
+	kit:part("Restroom end wall", { 110, 11, -31 }, { 1.2, 22, 38 }, C.steel)
+	kit:part("Heads and tails partition", { 91, 11, -31 }, { 38, 22, 1.2 }, C.paleSteel)
+	for _, segment in { { -48.5, 3 }, { -31, 8 }, { -13.5, 3 } } do
+		kit:part("Restroom doorway wall", { 72, 11, segment[1] }, { 1.2, 22, segment[2] }, C.steel)
+	end
+	for _, z in { -41, -21 } do
+		kit:part("Restroom doorway header", { 72, 19.5, z }, { 1.2, 5, 12 }, C.steel)
+		kit:part("Porcelain cistern", { 106, 5, z }, { 4, 6, 6 }, C.cream)
+		kit:ball("Porcelain toilet", { 101, 2.5, z }, { 8, 5, 6 }, C.cream)
+		kit:ball("Toilet bowl inset", { 100, 5, z }, { 5, 0.2, 3.5 }, C.navy)
+		kit:part("Restroom sink", { 88, 5, z - 6 }, { 7, 2, 4 }, C.cream)
+		rod(kit, "Restroom faucet", { 88, 6, z - 7 }, { 88, 8, z - 7 }, 0.5, C.brass)
+		kit:part("Restroom mirror frame", { 88, 12, z - 8 }, { 8, 8, 0.7 }, C.brass)
+		kit:part("Restroom mirror inset", { 88, 12, z - 7.6 }, { 7, 7, 0.1 }, C.glass)
+		kit:light({ 88, 19, z }, C.cream, 25)
+	end
+	kit:ball("Heads fish emblem", { 71.2, 19, -21 }, { 0.3, 2.5, 3 }, C.brass)
+	kit:ball("Heads fish eye", { 71, 19.4, -20 }, { 0.2, 0.5, 0.5 }, C.navy)
+	for _, sign in { -1, 1 } do
+		kit:ball("Tails fin emblem", { 71.2, 19 + sign * 0.7, -41 }, { 0.3, 1.4, 3 }, C.brass)
+	end
+	kit:light({ 64, 19, -30 }, C.cream, 28)
+end
+
 return function(): { WorldKit.Part }
 	local outside = exterior()
-	local inside = WorldKit.new("krusty", Config.Zones.krusty.origin)
+	local inside = WorldKit.new("krusty", { 600, 0, 650 })
 	diningRoom(inside)
 	bulkheads(inside)
 	cashier(inside)
 	grill(inside)
 	office(inside)
+	serviceRooms(inside)
 	local result: { WorldKit.Part } = {}
 	for _, kit in { outside, inside } do
 		for _, part in kit.parts do

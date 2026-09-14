@@ -111,7 +111,14 @@ assert(bounds.moai.max.X + 8 < bounds.pineapple.min.X, "Moai and pineapple have 
 for _, portal in Config.Portals do
 	if portal.zone == "street" then
 		local towardRoad = Vector3.new(0, 0, Config.RoadZ - portal.position[3])
-		assert(towardRoad:Dot(vector(portal.normal)) > Config.RoadWidth / 2, "Street entrances face the road")
+		if portal.id == "krab-service-out" then
+			assert(portal.normal[3] == -1, "Restaurant service door faces the rear courtyard")
+		else
+			assert(
+				towardRoad:Dot(vector(portal.normal)) > Config.RoadWidth / 2,
+				"Street entrances face the road"
+			)
+		end
 		assert(portal.width >= 6, "Street doorways accommodate a standard avatar")
 	end
 end

@@ -109,9 +109,15 @@ return function(): { WorldKit.Part }
 		).collide =
 			false
 	end
-	for i = 0, 15 do
-		local x = -190 + i * 34
-		local z = -88 - i % 3 * 12
+	kit:part("Boating School avenue", { 325, 0.06, -65 }, { 18, 0.08, 224 }, asphalt, nil, "Concrete").collide =
+		false
+	kit:part("Practice course access road", { 343, 0.06, -145 }, { 36, 0.08, 18 }, asphalt, nil, "Concrete").collide =
+		false
+	kit:part("Jellyfish Fields footpath", { 80, 0.07, 113 }, { 10, 0.08, 112 }, { 185, 191, 143 }).collide =
+		false
+	for i = 0, 23 do
+		local x = cx - width / 2 + 20 + i * (width - 40) / 23
+		local z = cz - depth / 2 - 28 - i % 3 * 12
 		local height = 16 + i * 7 % 23
 		local color = { 89 + i % 4 * 9, 157 + i % 3 * 8, 171 }
 		kit:cylinder("Distant Bikini Bottom tube building", { x, height / 2, z }, { height, 9, 9 }, color)
@@ -127,8 +133,8 @@ return function(): { WorldKit.Part }
 				false
 		end
 	end
-	for i = 0, 23 do
-		local x, z = -164 + i * 20, 145 + i % 3 * 9
+	for i = 0, 39 do
+		local x, z = cx - width / 2 + i * width / 39, cz + depth / 2 + 12 + i % 3 * 9
 		for j = 0, 2 do
 			kit:ball(
 				"Coral",
@@ -142,20 +148,20 @@ return function(): { WorldKit.Part }
 	for i = 0, 6 do
 		flower(
 			kit,
-			-190 + i * 87,
+			cx - width / 2 + i * width / 6,
 			65 + i % 3 * 23,
-			-174,
+			cz - depth / 2 - 70,
 			21 + i % 2 * 9,
 			if i % 2 == 0 then { 92, 189, 166 } else { 100, 159, 197 }
 		)
 	end
 	for _, panel in
 		{
-			{ { cx, 120, -240 }, { 862, 240, 2 } },
-			{ { cx, 120, 380 }, { 862, 240, 2 } },
-			{ { cx - 430, 120, 70 }, { 2, 240, 620 } },
-			{ { cx + 430, 120, 70 }, { 2, 240, 620 } },
-			{ { cx, 240, 70 }, { 862, 2, 620 } },
+			{ { cx, 120, cz - depth / 2 - 140 }, { width + 320, 240, 2 } },
+			{ { cx, 120, cz + depth / 2 + 140 }, { width + 320, 240, 2 } },
+			{ { cx - width / 2 - 160, 120, cz }, { 2, 240, depth + 280 } },
+			{ { cx + width / 2 + 160, 120, cz }, { 2, 240, depth + 280 } },
+			{ { cx, 240, cz }, { width + 320, 2, depth + 280 } },
 		}
 	do
 		local backdrop = kit:part("Underwater backdrop", panel[1], panel[2], water, nil, "Neon")

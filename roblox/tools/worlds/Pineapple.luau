@@ -3,6 +3,8 @@
 local WorldKit = require("../WorldKit")
 -- selene: allow(incorrect_standard_library_use)
 local Config = require("../../src/shared/Config")
+-- selene: allow(incorrect_standard_library_use)
+local Roblox = require("../Roblox")
 
 type Triple = WorldKit.Triple
 type Kit = WorldKit.Kit
@@ -77,7 +79,12 @@ local function turn(kit: Kit, first: number, pivot: Triple, degrees: number)
 		local z = part.position[3] - kit.origin[3] - pivot[3]
 		part.position[1] = kit.origin[1] + pivot[1] + x * math.cos(angle) + z * math.sin(angle)
 		part.position[3] = kit.origin[3] + pivot[3] - x * math.sin(angle) + z * math.cos(angle)
-		part.rotation[2] += degrees
+		local rx, ry, rz = (Roblox.CFrame.Angles(0, angle, 0) * Roblox.CFrame.Angles(
+			math.rad(part.rotation[1]),
+			math.rad(part.rotation[2]),
+			math.rad(part.rotation[3])
+		)):ToEulerAnglesXYZ()
+		part.rotation = { math.deg(rx), math.deg(ry), math.deg(rz) }
 	end
 end
 
@@ -142,8 +149,9 @@ local function doorTrim(kit: Kit, p: Triple, color: Triple, side: boolean?)
 end
 
 local function room(zone: string, wall: Triple, floor: Triple, side: boolean): Kit
-	local kit = WorldKit.new(zone, Config.Zones[zone].origin)
-	local height = Config.Zones[zone].size[2]
+	local layout = Config.PineappleRooms[zone]
+	local kit = WorldKit.new("sponge", layout.origin)
+	local height = layout.height
 	kit:room(96, 88, height, wall, floor, side)
 	doorTrim(kit, { 0, 0, 43.1 }, C.brass)
 	if side then
@@ -815,10 +823,40 @@ local function bedroom(): Kit
 	return kit
 end
 
+local function hallways(): Kit
+	local kit = WorldKit.new("sponge", { 0, 0, 650 })
+	kit:part("Library hallway floor", { 56, -0.6, 0 }, { 18, 1.2, 14 }, C.brass, nil, "WoodPlanks")
+	kit:part("Library hallway ceiling", { 56, 20.5, 0 }, { 18, 1, 14 }, C.cyan)
+	for _, side in { -1, 1 } do
+		kit:part("Library hallway wall", { 56, 10, side * 6.6 }, { 18, 20, 1.2 }, C.cyan)
+		kit:part("Library hallway skirting", { 56, 1, side * 6 }, { 18, 0.8, 0.3 }, C.brass).collide = false
+	end
+	kit:light({ 56, 17, 0 }, C.cream, 22)
+	kit:part("Bedroom hallway floor", { 108, -0.6, 54 }, { 14, 1.2, 14 }, C.brass, nil, "WoodPlanks")
+	kit:part("Bedroom hallway ceiling", { 108, 20.5, 54 }, { 14, 1, 14 }, C.blue)
+	for _, side in { -1, 1 } do
+		kit:part("Bedroom hallway wall", { 108 + side * 6.6, 10, 54 }, { 1.2, 20, 14 }, C.blue)
+		kit:part("Bedroom hallway skirting", { 108 + side * 6, 1, 54 }, { 0.3, 0.8, 14 }, C.brass).collide =
+			false
+	end
+	kit:light({ 108, 17, 54 }, C.cream, 22)
+	return kit
+end
+
 return function(): { WorldKit.Part }
 	local result: { WorldKit.Part } = {}
-	for _, kit in { exterior(), livingRoom(), library(), bedroom() } do
+	local living, books, bed = livingRoom(), library(), bedroom()
+	turn(books, 1, { 0, 0, 0 }, Config.PineappleRooms.spongeLibrary.yaw)
+	turn(bed, 1, { 0, 0, 0 }, Config.PineappleRooms.spongeBedroom.yaw)
+	for _, kit in { exterior(), living, books, bed, hallways() } do
 		for _, part in kit.parts do
+			if kit.zone == "sponge" then
+				part.group = if kit == living
+					then "Living room and kitchen"
+					elseif kit == books then "Library"
+					elseif kit == bed then "Bedroom and bathroom"
+					else "Connected hallways"
+			end
 			table.insert(result, part)
 		end
 	end

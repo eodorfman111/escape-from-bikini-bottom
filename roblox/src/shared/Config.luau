@@ -44,25 +44,33 @@ Config.StartingCoins = 100
 Config.DiscoveryCoins = 80
 Config.KillCoins = 12
 Config.WaveCoins = 60
-Config.Spawn = { -46, 5, 83 }
+Config.Spawn = { -80, 5, 83 }
 Config.RoadZ = 47
 Config.RoadWidth = 20
 Config.Exteriors = {
 	pineapple = { origin = { 0, 0, 0 }, scale = 0.62, yaw = 0 },
-	moai = { origin = { -46, 0, 0 }, scale = 0.6, yaw = 0 },
-	rock = { origin = { -92, 0, 0 }, scale = 0.6, yaw = 0 },
-	krab = { origin = { 200, 0, -10 }, scale = 0.75, yaw = 0 },
-	bucket = { origin = { 200, 0, 104 }, scale = 0.7, yaw = 180 },
+	moai = { origin = { -80, 0, 0 }, scale = 0.6, yaw = 0 },
+	rock = { origin = { -160, 0, 0 }, scale = 0.6, yaw = 0 },
+	krab = { origin = { 220, 0, -10 }, scale = 1, yaw = 0 },
+	bucket = { origin = { 220, 0, 104 }, scale = 0.7, yaw = 180 },
 } :: { [string]: Exterior }
 Config.RockHinge = { 0, 0, -19 }
 Config.FishSpawns = {
-	{ -134, 3, 91 },
-	{ -78, 3, 104 },
+	{ -200, 3, 91 },
+	{ -80, 3, 104 },
 	{ -12, 3, 110 },
 	{ 68, 3, 91 },
 	{ 151, 3, 47 },
-	{ 251, 3, 47 },
+	{ 280, 3, 47 },
+	{ 400, 3, 47 },
+	{ 550, 3, -185 },
+	{ 90, 3, 220 },
 }
+Config.PineappleRooms = {
+	sponge = { origin = { 0, 0, 650 }, height = 26, yaw = 0 },
+	spongeLibrary = { origin = { 108, 0, 650 }, height = 28, yaw = -90 },
+	spongeBedroom = { origin = { 108, 0, 754 }, height = 26, yaw = 180 },
+} :: { [string]: { origin: Triple, height: number, yaw: number } }
 
 function Config.exteriorPoint(id: string, point: Triple): Triple
 	local exterior = Config.Exteriors[id]
@@ -77,14 +85,8 @@ end
 Config.Avatars =
 	{ explorer = "Reef Explorer", sponge = "SpongeBob", patrick = "Patrick", squid = "Squidward" }
 Config.Zones = {
-	street = { name = "Conch Street", origin = { 70, 0, 65 }, size = { 540, 150, 370 } },
-	sponge = { name = "Pineapple · living room & kitchen", origin = { 0, 0, 650 }, size = { 96, 26, 88 } },
-	spongeLibrary = { name = "Pineapple · library", origin = { 0, 0, 850 }, size = { 96, 28, 88 } },
-	spongeBedroom = {
-		name = "Pineapple · bedroom & bathroom",
-		origin = { 0, 0, 1050 },
-		size = { 96, 26, 88 },
-	},
+	street = { name = "Bikini Bottom", origin = { 150, 0, 30 }, size = { 900, 150, 540 } },
+	sponge = { name = "SpongeBob's connected home", origin = { 54, 0, 704 }, size = { 216, 32, 200 } },
 	squid = { name = "Moai · living room & dining room", origin = { 300, 0, 650 }, size = { 96, 26, 88 } },
 	squidLibrary = { name = "Moai · library", origin = { 300, 0, 850 }, size = { 96, 28, 88 } },
 	squidStudio = { name = "Moai · portrait studio", origin = { 300, 0, 1050 }, size = { 96, 26, 88 } },
@@ -94,9 +96,9 @@ Config.Zones = {
 		size = { 96, 26, 88 },
 	},
 	krusty = {
-		name = "Krusty Krab · dining room & grill",
-		origin = { 600, 0, 650 },
-		size = { 116, 30, 100 },
+		name = "Krusty Krab · dining, kitchen & service rooms",
+		origin = { 626, 0, 625 },
+		size = { 172, 32, 156 },
 	},
 	chum = {
 		name = "Chum Bucket · restaurant & laboratory",
@@ -202,26 +204,15 @@ pair(
 	true
 )
 pair(
-	"pineapple-stairs",
-	"sponge",
-	{ 48, 0, 650 },
-	{ -1, 0, 0 },
-	"spongeLibrary",
-	{ 0, 0, 894 },
+	"krab-service",
+	"street",
+	Config.exteriorPoint("krab", { 18, 0, -64 }),
 	{ 0, 0, -1 },
-	"Library stairs",
-	false
-)
-pair(
-	"pineapple-slide",
-	"spongeLibrary",
-	{ 48, 0, 850 },
-	{ -1, 0, 0 },
-	"spongeBedroom",
-	{ 0, 0, 1094 },
-	{ 0, 0, -1 },
-	"Bedroom slide",
-	false
+	"krusty",
+	{ 635, 0, 550 },
+	{ 0, 0, 1 },
+	"Rear service door",
+	true
 )
 pair(
 	"moai-stairs",

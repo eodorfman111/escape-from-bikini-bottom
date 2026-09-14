@@ -12,6 +12,10 @@ local Krusty = require("./worlds/Krusty")
 -- selene: allow(incorrect_standard_library_use)
 local Chum = require("./worlds/Chum")
 -- selene: allow(incorrect_standard_library_use)
+local School = require("./worlds/School")
+-- selene: allow(incorrect_standard_library_use)
+local Neighborhood = require("./worlds/Neighborhood")
+-- selene: allow(incorrect_standard_library_use)
 local WorldKit = require("./WorldKit")
 -- selene: allow(incorrect_standard_library_use)
 local Config = require("../src/shared/Config")
@@ -29,6 +33,8 @@ return function(): { WorldKit.Part }
 			{ id = "rock", build = Rock },
 			{ id = "krab", build = Krusty },
 			{ id = "bucket", build = Chum },
+			{ id = "school", build = School },
+			{ id = "neighborhood", build = Neighborhood },
 		}
 	do
 		local exterior = Config.Exteriors[builder.id]
