@@ -1,0 +1,185 @@
+--!strict
+-- selene: allow(incorrect_standard_library_use)
+local fs = require("@lune/fs")
+-- selene: allow(incorrect_standard_library_use)
+local roblox = require("./Roblox")
+-- selene: allow(incorrect_standard_library_use)
+local process = require("@lune/process")
+-- selene: allow(incorrect_standard_library_use)
+local World = require("./World")
+-- selene: allow(incorrect_standard_library_use)
+local Config = require("../src/shared/Config")
+
+local Instance = roblox.Instance
+local Color3 = roblox.Color3
+local Vector3 = roblox.Vector3
+local CFrame = roblox.CFrame
+local Enum = roblox.Enum
+local materials: { [string]: Enum.Material } = {}
+local shapes: { [string]: Enum.PartType } = {}
+for _, material in Enum.Material:GetEnumItems() do
+	materials[material.Name] = material :: Enum.Material
+end
+for _, shape in Enum.PartType:GetEnumItems() do
+	shapes[shape.Name] = shape :: Enum.PartType
+end
+
+local function vector(t: { number })
+	return Vector3.new(t[1], t[2], t[3])
+end
+local function color(t: { number })
+	return Color3.fromRGB(t[1], t[2], t[3])
+end
+local world = Instance.new("Model")
+world.Name = "ConchWorld"
+local zones: { [string]: Folder } = {}
+local zoneCount = 0
+for id in Config.Zones do
+	zoneCount += 1
+	local folder = Instance.new("Folder")
+	folder.Name = id
+	folder.Parent = world
+	zones[id] = folder
+end
+local parts = World()
+local groups: { [string]: Model } = {}
+for _, spec in parts do
+	local part: BasePart = if spec.shape == "Wedge" then Instance.new("WedgePart") else Instance.new("Part")
+	part.Name = spec.name
+	part.Size = vector(spec.size)
+	part.CFrame = CFrame.new(vector(spec.position))
+		* CFrame.Angles(math.rad(spec.rotation[1]), math.rad(spec.rotation[2]), math.rad(spec.rotation[3]))
+	part.Color = color(spec.color)
+	part.Material = assert(materials[spec.material], "Unknown material " .. spec.material)
+	if part:IsA("Part") then
+		if spec.shape == "Ball" then
+			part.Shape = Enum.PartType.Block
+			local mesh = Instance.new("SpecialMesh")
+			mesh.Name, mesh.MeshType = "Ellipsoid", Enum.MeshType.Sphere
+			mesh.Scale = Vector3.one
+			mesh.Parent = part
+		else
+			part.Shape = assert(shapes[spec.shape], "Unknown shape " .. spec.shape)
+		end
+	end
+	part.Anchored = true
+	part.CanCollide = spec.collide
+	part.CanTouch = false
+	part.CastShadow = spec.castShadow ~= false and spec.transparency < 1
+	part.CanQuery = spec.collide
+	part.Transparency = spec.transparency
+	part.TopSurface = Enum.SurfaceType.Smooth
+	part.BottomSurface = Enum.SurfaceType.Smooth
+	part:SetAttribute("Zone", spec.zone)
+	if spec.secret then
+		part:SetAttribute("Discovery", spec.secret)
+	end
+	if spec.secret or spec.supply then
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.ActionText = if spec.secret then "Discover • +80 coins" else "Heal & refill"
+		prompt.ObjectText = spec.name
+		prompt.HoldDuration = 0.4
+		prompt.MaxActivationDistance = 10
+		prompt.RequiresLineOfSight = false
+		prompt.Parent = part
+		part:SetAttribute("Supply", spec.supply == true)
+	end
+	if spec.light > 0 then
+		local light = Instance.new("PointLight")
+		light.Color = color(spec.color)
+		light.Range = math.min(60, spec.light)
+		light.Brightness = 1.3
+		light.Shadows = false
+		light.Parent = part
+	end
+	local group = spec.group
+	if group then
+		local key = spec.zone .. "/" .. group
+		if not groups[key] then
+			local model = Instance.new("Model")
+			model.Name, model.Parent = group, zones[spec.zone]
+			groups[key] = model
+		end
+		part.Parent = groups[key]
+	else
+		part.Parent = zones[spec.zone]
+	end
+end
+for _, portal in Config.Portals do
+	local part = Instance.new("Part")
+	part.Name = portal.id
+	local height = if portal.zone == "street" then portal.width * 1.6 else 16
+	part.Size = Vector3.new(portal.width, height, 0.2)
+	local position, normal = vector(portal.position), vector(portal.normal)
+	part.CFrame = CFrame.lookAt(
+		position + Vector3.new(0, height / 2, 0),
+		position + Vector3.new(0, height / 2, 0) - normal
+	)
+	part.Color = Color3.fromRGB(100, 230, 231)
+	part.Material = Enum.Material.Neon
+	part.Transparency = 1
+	part.Anchored, part.CanCollide, part.CanQuery, part.CanTouch = true, false, false, false
+	part:SetAttribute("Portal", portal.id)
+	part:SetAttribute("Zone", portal.zone)
+	part.Parent = zones[portal.zone]
+	local face = Instance.new("Part")
+	face.Name = "Opaque doorway"
+	face.Size = Vector3.new(if portal.zone == "street" then portal.width * 1.5 else 12, height + 1.5, 0.4)
+	face.CFrame = part.CFrame
+	face.Color = Color3.fromRGB(53, 106, 137)
+	face.Material = Enum.Material.WoodPlanks
+	face.Anchored, face.CanCollide, face.CanTouch, face.CanQuery = true, false, false, false
+	face:SetAttribute("Zone", portal.zone)
+	face:SetAttribute("DoorCover", portal.id)
+	face.Parent = zones[portal.zone]
+	for _, side in { -1, 1 } do
+		local handle = Instance.new("Part")
+		handle.Name = "Brass doorway handle"
+		handle.Size = Vector3.new(0.3, 1.7, 0.4)
+		handle.CFrame = face.CFrame * CFrame.new(face.Size.X * 0.3, -height * 0.1, side * 0.4)
+		handle.Color = Color3.fromRGB(230, 192, 103)
+		handle.Material = Enum.Material.Metal
+		handle.Anchored, handle.CanCollide, handle.CanTouch, handle.CanQuery = true, false, false, false
+		handle.Parent = face
+	end
+	local canBarricade = portal.barricade
+	for _, paired in Config.Portals do
+		if paired.id == portal.target and paired.barricade then
+			canBarricade = true
+		end
+	end
+	if canBarricade then
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.ActionText = "Barricade • 40 coins / 15 seconds"
+		prompt.ObjectText = portal.label
+		prompt.HoldDuration = 1
+		prompt.MaxActivationDistance = 14
+		prompt.RequiresLineOfSight = false
+		prompt.Parent = part
+	end
+end
+local spawn = Instance.new("SpawnLocation")
+spawn.Name = "ConchSpawn"
+spawn.Size = Vector3.new(10, 0.2, 10)
+spawn.Position = Vector3.new(Config.Spawn[1], 0.15, Config.Spawn[3])
+spawn.Anchored = true
+spawn.Transparency = 1
+spawn.Neutral = true
+spawn.Duration = 0
+spawn.Parent = world
+fs.writeDir("build")
+fs.writeFile("build/World.rbxm", roblox.serializeModel({ world }))
+local result =
+	process.exec("rojo", { "build", "default.project.json", "-o", "build/ConchStreetSurvival.rbxl" })
+assert(result.ok, result.stderr)
+print(result.stdout)
+local place = roblox.deserializePlace(fs.readFile("build/ConchStreetSurvival.rbxl"))
+assert(place:GetService("Workspace"):FindFirstChild("ConchWorld"), "World missing from place")
+print(
+	string.format(
+		"Built editable place with %d modeled parts, %d doors, %d zones",
+		#parts,
+		#Config.Portals,
+		zoneCount
+	)
+)
